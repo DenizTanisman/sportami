@@ -1,67 +1,67 @@
 # Saha
 
-**Ağrılarına, amaçlarına ve zamanına göre araştırmalara dayalı bir antrenman programı kuran ve bu programı adım adım yürüten Android uygulaması.**
+**An Android app that builds a research-based training program around your pain, goals and time, and then walks you through it step by step.**
 
-> **Uyarı:** Buradaki öneriler, herkese açık yayımlanmış araştırmalara ve kılavuzlara dayanır. Doktor, fizyoterapist ya da diyetisyen tavsiyesi değildir. Doğru bilgi için uzmana danışınız.
+> **Warning:** The suggestions here are based on publicly published research and guidelines. They are not advice from a doctor, physiotherapist or dietitian. Consult a specialist for accurate information.
 
 <p>
-  <img src="docs/kurulum-rahatsizlik.jpg" width="24%" alt="Kurulum: rahatsızlık seçimi, ağrı puanı ve kırmızı bayraklar">
-  <img src="docs/kurulum-kaslar.jpg" width="24%" alt="Kurulum: amaçların istediği kas grupları vücut haritasında">
-  <img src="docs/kurulum-program.jpg" width="24%" alt="Kurulum: hazır program, haftanın günleri ve hareketler">
-  <img src="docs/bugun.jpg" width="24%" alt="Bugün ekranı: günün planı">
+  <img src="docs/kurulum-rahatsizlik.jpg" width="24%" alt="Setup: choosing a condition, pain score and red flags">
+  <img src="docs/kurulum-kaslar.jpg" width="24%" alt="Setup: the muscle groups your goals need, on the body map">
+  <img src="docs/kurulum-program.jpg" width="24%" alt="Setup: the finished program, days of the week and exercises">
+  <img src="docs/bugun.jpg" width="24%" alt="Today screen: the plan for the day">
 </p>
 
-## Nasıl çalışır
+## How it works
 
-İlk açılışta kısa bir kurulum akışı vardır:
+On first launch there is a short setup flow:
 
-1. **Uyarı ve onay.** Verilerin yalnız telefonda kalır; hesap da sunucu da yoktur.
-2. **Profil:** cinsiyet, yaş ve antrenman geçmişi.
-3. **Sağlık taraması:** PAR-Q+ (2023) soruları. "Evet" yanıtı varsa önce doktor onayı istenir.
-4. **Rahatsızlıklar:** 41 yaygın ağrı ve sakatlık arasından seçim yapılır.
-   - Ağrı için 0–10 arası puan girilir.
-   - Burkulma ve yırtılmalarda derece ve ne zaman olduğu girilir.
-   - Kırmızı bayrak işaretlenirse program çıkarılmaz ve doktora yönlendirilirsin.
-5. **Amaçlar:** birden fazla seçilebilir; örneğin basketbol ve kas kazanma, ya da kilo verme ve genel sağlık.
-6. **Kas grupları:** Amaçlarının istediği kaslar vücut haritasında gösterilir. Rahatsızlık yüzünden şimdilik çalışılmaması gereken bölgeler ayrıca belirtilir. İstersen kas grubu ekleyebilirsin; hasarlı bölgeler seçilemez.
-7. **Haftalık ihtiyaç:** Kas başına haftalık set ve bundan çıkan gün sayısı gösterilir.
-8. **Yer ve günler:** salon, ev ya da dış mekân; evdeysen elindeki ekipman. Kuvvet günlerini ve spor antrenmanı/maç günlerini seçersin.
-9. **Süre:** 1 ay (bir blok) ya da 2 ay (iki blok).
+1. **Warning and consent.** Your data stays only on your phone; there is no account and no server.
+2. **Profile:** sex, age and training history.
+3. **Health screening:** the PAR-Q+ (2023) questions. If any answer is "yes", a doctor's clearance is asked for first.
+4. **Conditions:** pick from 41 common pains and injuries.
+   - For pain, you enter a score from 0 to 10.
+   - For sprains and tears, you enter the grade and when it happened.
+   - If a red flag is checked, no program is built and you are referred to a doctor.
+5. **Goals:** you can pick more than one; for example basketball and muscle gain, or weight loss and general health.
+6. **Muscle groups:** The muscles your goals need are shown on a body map. Areas you shouldn't train for now because of a condition are marked separately. You can add muscle groups if you like; injured areas can't be selected.
+7. **Weekly need:** Weekly sets per muscle and the number of days that follows from them.
+8. **Place and days:** gym, home or outdoors; at home, the equipment you have. You choose your strength days and your sport practice/match days.
+9. **Duration:** 1 month (one block) or 2 months (two blocks).
 
-Ardından program kurulur. Uygulama program boyunca şunları yapar:
+Then the program is built. Throughout the program the app:
 
-- Seçtiğin günleri aynı kası yükleyen seanslar arasında yeterli toparlanma kalacak şekilde böler (örneğin Cumartesi → Pazartesi 48 saattir). Gerekirse tüm vücut yerine üst/alt bölünmesi kurar.
-- Her seansa temel kalıpları koyar: squat, menteşe, itme, çekme ve core. Ağrılı bölgeye uygun olmayan hareketin yerine daha kolay alternatifini koyar.
-- Sıçrama çalışmalarını yalnız diz ve ayak bileği sağlıklıysa, en az 48 saat arayla verir.
-- Spor gününden önceki seansta bacak yükünü hafifletir.
-- WHO önerisine göre haftalık kardiyo hedefini ekler.
-- Programı 4 haftalık bloklara böler. Her hafta için RIR ve ilerleme kuralı vardır; seviyene göre deload haftası eklenir ve her blok sonunda test yapılır.
+- Splits your chosen days so there is enough recovery between sessions that load the same muscle (for example, Saturday → Monday is 48 hours). If needed, it sets up an upper/lower split instead of full body.
+- Puts the basic patterns into every session: squat, hinge, push, pull and core. An exercise that doesn't suit a painful area is replaced with an easier alternative.
+- Gives jump training only if the knees and ankles are healthy, at least 48 hours apart.
+- Lightens the leg load in the session before a sport day.
+- Adds a weekly cardio target following the WHO recommendation.
+- Splits the program into 4-week blocks. Each week has an RIR and a progression rule; a deload week is added according to your level, and each block ends with a test.
 
-Kuralların hepsi yayımlanmış kılavuz ve araştırmalara dayanır: WHO 2020, ACSM, NSCA ve spor hekimliği dergileri. Bunlara hacim–frekans meta-analizleri, ağrı izleme modeli ve sakatlık iyileşme süreleri de dahildir.
+All the rules are based on published guidelines and research: WHO 2020, ACSM, NSCA and sports medicine journals. These include volume–frequency meta-analyses, the pain monitoring model and injury healing times.
 
-## Özellikler
+## Features
 
-- **Bugün:** Günün planını gösterir: ısınma, ana bölüm ve soğuma. Kartlarda son kayıt, rekor ve set ilerlemesi görünür. Spor ve kardiyo günleri de belirtilir.
-- **267 hareket**, her biri için:
-  - **Animasyon:** Kendi çubuk-adam animasyonu hepsinde var. Varsa ExerciseDB'den anatomik animasyon da canlı gelir.
-  - **Detay:** zorluk, yaparken dikkat edilecekler ve sık hatalar.
-  - **Çalışan bölgeler:** vücut haritası.
-  - **Alternatifler:** genel, daha kolay ve daha zor alternatif.
-- **Metal tekerlekli kayıt:** Ağırlık ve tekrar fırçalanmış metal görünümlü tekerleklerle seçilir. Her setin mola süresi otomatik sayılır.
-- **İlerleme:** Ana kaldırışların rekorları ve grafikleri; vücut ölçümleri.
-- **Türkçe ve İngilizce:** Arayüz ve içerik iki dilde.
-- **Yedek:** Kayıtlar yalnız telefonda tutulur. Dışa aktarınca panoya kopyalanır; içe aktarma hiçbir şeyi silmez.
+- **Today:** Shows the plan for the day: warm-up, main block and cool-down. Cards show the last entry, the record and set progress. Sport and cardio days are marked too.
+- **267 exercises**, each with:
+  - **Animation:** Every one has its own stick-figure animation. Where available, an anatomical animation is also loaded live from ExerciseDB.
+  - **Details:** difficulty, what to watch for while doing it, and common mistakes.
+  - **Muscles worked:** a body map.
+  - **Alternatives:** a general, an easier and a harder alternative.
+- **Metal wheel logging:** Weight and reps are picked with brushed-metal wheels. The rest time of each set is counted automatically.
+- **Progress:** Records and charts for the main lifts; body measurements.
+- **Turkish and English:** The interface and the content are in both languages.
+- **Backup:** Records are kept only on the phone. Export copies them to the clipboard; import never deletes anything.
 
-## Kurulum
+## Installation
 
-1. [Sürümler](../../releases) sayfasından son `saha-x.y.z.apk` dosyasını telefona indir.
-2. Telefonun "bilinmeyen kaynaklardan yükleme" izni sorarsa izin ver ve kur.
+1. Download the latest `saha-x.y.z.apk` from the [Releases](../../releases) page to your phone.
+2. If your phone asks for permission to install from unknown sources, allow it and install.
 
-Android 7 ve sonrası gerekir. Anatomik animasyonlar için internet bağlantısı gerekir; bağlantı yoksa uygulama kendi çizimini gösterir. Bunun dışında her şey çevrimdışı çalışır.
+Requires Android 7 or later. Anatomical animations need an internet connection; without one the app shows its own drawing. Everything else works offline.
 
-## Derleme
+## Building
 
-Gereken araçlar: Flutter 3.44 ve Java 21.
+Tools needed: Flutter 3.44 and Java 21.
 
 ```sh
 cd app
@@ -69,45 +69,32 @@ flutter test
 flutter build apk --release
 ```
 
-Yayın imzası için `app/android/key.properties` dosyası oluştur. Bu dosya depoya girmez; yoksa APK hata ayıklama anahtarıyla imzalanır.
+For a release signature, create an `app/android/key.properties` file. This file is not committed to the repo; without it the APK is signed with the debug key.
 
-Kod yapısı (`app/lib/`):
+Code layout (`app/lib/`):
 
-| Dosya | İçerik |
+| File | Contents |
 |---|---|
-| `motor.dart` | Karar ve program motoru: bölge sağlığı, hareket uygunluğu, haftalık hacim, gün dağıtımı, bloklar |
-| `kurulum.dart` | Kurulum akışı |
-| `plan_program.dart` | Kurulan planı ekranların program yapısına çevirir |
-| `data.dart` | Katalog, program, kayıtlar |
-| `wheel.dart`, `figure.dart`, `body_map.dart`, `media.dart` | Tekerlekler, çizim animasyonları, vücut haritası, medya |
-| `today.dart`, `exercise_page.dart`, `program_page.dart`, `progress_page.dart` | Ekranlar |
+| `motor.dart` | Decision and program engine: area health, exercise suitability, weekly volume, day distribution, blocks |
+| `kurulum.dart` | Setup flow |
+| `plan_program.dart` | Turns the built plan into the program structure used by the screens |
+| `data.dart` | Catalog, program, records |
+| `wheel.dart`, `figure.dart`, `body_map.dart`, `media.dart` | Wheels, drawn animations, body map, media |
+| `today.dart`, `exercise_page.dart`, `program_page.dart`, `progress_page.dart` | Screens |
 
-Veri (`app/assets/data/`):
+Data (`app/assets/data/`):
 
-| Dosya | İçerik |
+| File | Contents |
 |---|---|
-| `motor.json` | Hareketler, rahatsızlıklar, spor/amaçlar, bölgeler, kurallar |
-| `katalog.json`, `katalog_ek.json` | Hareket içerikleri |
-| `figur.json` | Animasyonlar |
-| `en.json` | İngilizce içerik |
+| `motor.json` | Exercises, conditions, sports/goals, areas, rules |
+| `katalog.json`, `katalog_ek.json` | Exercise content |
+| `figur.json` | Animations |
+| `en.json` | English content |
 
-## Lisans
+## License
 
-Kod ve içerik [MIT](LICENSE) lisanslı. Üçüncü taraf bileşenler ve lisansları [THIRD_PARTY.md](THIRD_PARTY.md) dosyasında:
+Code and content are licensed under [MIT](LICENSE). Third-party components and their licenses are listed in [THIRD_PARTY.md](THIRD_PARTY.md):
 
-- Inter yazı tipi (OFL);
-- vücut haritası çizimleri (MIT);
-- ExerciseDB animasyonları. Bunlar depoda yoktur; uygulama çalışırken canlı olarak alınır.
-
----
-
-**English:** Saha is an Android app (Flutter) that builds a research-based training program from your pain and injuries, goals, sex, training age, location and available days.
-
-- It screens with PAR-Q+ and red flags.
-- It shows needed and to-avoid muscle groups on a body map.
-- It spreads sessions over your days with recovery time between them.
-- It runs the program in 4-week blocks with RIR targets and deloads.
-
-Every one of its 267 exercises has its own stick-figure animation, plus a live anatomical animation where available. The app is in Turkish and English. Data stays on the device. MIT licensed.
-
-*The suggestions are based on published research and guidelines; they are not advice from a doctor, physiotherapist or dietitian.*
+- the Inter font (OFL);
+- body map drawings (MIT);
+- ExerciseDB animations. These are not in the repo; the app fetches them live while it runs.
