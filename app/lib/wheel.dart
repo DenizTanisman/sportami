@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'data.dart';
+import 'lang.dart';
 import 'theme.dart';
 
 const _rowH = 42.0;
@@ -256,14 +257,14 @@ class _ValueWheelState extends State<ValueWheel> {
   Widget build(BuildContext context) {
     final f = widget.field;
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      Text(f.unit.isEmpty ? f.label : '${f.label} · ${f.unit}', style: t(11.5, w: 620, color: C.text3, ls: 0.6)),
+      Text(f.unit.isEmpty ? tr(f.label) : '${tr(f.label)} · ${tr(f.unit)}', style: t(11.5, w: 620, color: C.text3, ls: 0.6)),
       const SizedBox(height: 8),
       Row(mainAxisSize: MainAxisSize.min, children: [
         MetalWheel(
           labels: _wholeLabels,
           index: _wi,
           width: f.fraction ? 78 : 92,
-          semantic: f.label,
+          semantic: tr(f.label),
           onChanged: (i) {
             _wi = i;
             widget.onChanged(_join());
@@ -275,7 +276,7 @@ class _ValueWheelState extends State<ValueWheel> {
             labels: const [',00', ',25', ',50', ',75'],
             index: _fi,
             width: 58,
-            semantic: '${f.label} ondalık',
+            semantic: trf('{0} ondalık', [tr(f.label)]),
             onChanged: (i) {
               _fi = i;
               widget.onChanged(_join());
@@ -288,7 +289,8 @@ class _ValueWheelState extends State<ValueWheel> {
 }
 
 /// Bottom sheet with drums for one or more fields (measurements, settings).
-Future<Map<String, num?>?> showWheelSheet(BuildContext context, {required String title, required List<Field> fields, required Map<String, num?> values, String action = 'Tamam', String? subtitle}) {
+Future<Map<String, num?>?> showWheelSheet(BuildContext context, {required String title, required List<Field> fields, required Map<String, num?> values, String? action, String? subtitle}) {
+  final label = action ?? tr('Tamam');
   final v = Map<String, num?>.from(values);
   return showModalBottomSheet<Map<String, num?>>(
     context: context,
@@ -311,7 +313,7 @@ Future<Map<String, num?>?> showWheelSheet(BuildContext context, {required String
               for (final f in fields) ValueWheel(field: f, value: v[f.key], onChanged: (x) => v[f.key] = x),
             ]),
             const SizedBox(height: 22),
-            PrimaryButton(label: action, onTap: () => Navigator.pop(ctx, v)),
+            PrimaryButton(label: label, onTap: () => Navigator.pop(ctx, v)),
           ]),
         ),
       ),

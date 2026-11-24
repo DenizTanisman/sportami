@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'data.dart';
+import 'lang.dart';
 import 'media.dart';
 import 'theme.dart';
 
@@ -14,6 +15,9 @@ class App extends InheritedWidget {
   final RestTimer rest;
 
   static App of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<App>()!;
+
+  /// The one store, for places without a context (initState of the set-up flow).
+  static Store? ofStore;
 
   @override
   bool updateShouldNotify(App oldWidget) => false;
@@ -37,7 +41,7 @@ class DifficultyDots extends StatelessWidget {
           margin: const EdgeInsets.only(right: 3),
           decoration: BoxDecoration(color: i <= level ? c : C.surface3, borderRadius: BorderRadius.circular(3)),
         ),
-      if (label) ...[const SizedBox(width: 6), Text(zorlukAd[level.clamp(1, 5)], style: t(12.5, w: 600, color: c))],
+      if (label) ...[const SizedBox(width: 6), Text(tr(zorlukAd[level.clamp(1, 5)]), style: t(12.5, w: 600, color: c))],
     ]);
   }
 }
@@ -128,7 +132,7 @@ class MiniChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (points.length < 2) {
-      return SizedBox(height: 48, child: Center(child: Text('İki kayıttan sonra burada grafik çıkar.', style: T.caption)));
+      return SizedBox(height: 48, child: Center(child: Text(tr('İki kayıttan sonra burada grafik çıkar.'), style: T.caption)));
     }
     final ys = points.map((p) => p.$2.toDouble());
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -137,7 +141,7 @@ class MiniChart extends StatelessWidget {
       Row(children: [
         Text(shortDate(isoDay(points.first.$1)), style: T.caption),
         const Spacer(),
-        Text('en düşük ${fmtKg(ys.reduce(math.min))} · en yüksek ${fmtKg(ys.reduce(math.max))} $unit', style: T.caption),
+        Text(trf('en düşük {0} · en yüksek {1} {2}', [fmtKg(ys.reduce(math.min)), fmtKg(ys.reduce(math.max)), unit]), style: T.caption),
         const Spacer(),
         Text(shortDate(isoDay(points.last.$1)), style: T.caption),
       ]),

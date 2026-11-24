@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 
 import 'data.dart';
 import 'exercise_page.dart';
+import 'kurulum.dart';
+import 'lang.dart';
 import 'media.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -26,17 +28,18 @@ class TodayPage extends StatelessWidget {
             sliver: SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
               sliver: SliverList.list(children: [
-                Text(trUpper('${gunler[now.weekday - 1]}, ${now.day} ${aylar[now.month - 1]}'), style: T.overline),
+                Text(trUpper(trf('{0}, {1} {2}', [tr(gunler[now.weekday - 1]), now.day, tr(aylar[now.month - 1])])), style: T.overline),
                 const SizedBox(height: 6),
-                Text('Bugün', style: T.largeTitle),
+                Text(tr('Bugün'), style: T.largeTitle),
                 const SizedBox(height: 6),
-                Text('Hafta ${store.week} · ${ph.name} · ${ph.rir}', style: T.callout),
+                Text(trf('Hafta {0} · {1} · {2}', [store.week, ph.name, ph.rir]), style: T.callout),
                 const SizedBox(height: 18),
                 Segmented<String?>(
-                  items: [for (final (wd, id) in store.weekOrder) (id, '${gunKisa[wd - 1]} · ${id.substring(3)}')],
+                  items: [for (final (wd, id) in store.weekOrder) (id, tr(gunKisa[wd - 1]))],
                   value: dayId,
                   onChanged: (id) => store.chooseDay(id == dayId ? null : id), // aynı güne yeniden dokunmak seçimi kaldırır
                 ),
+                if (store.usesPlan) _PlanToday(store: store),
               ]),
             ),
           ),
@@ -88,7 +91,7 @@ class TodayPage extends StatelessWidget {
                 size: 74,
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Text('$done', style: T.num(22, w: 720)),
-                  Text('/ $target set', style: t(10.5, w: 560, color: C.text3)),
+                  Text(trf('/ {0} set', [target]), style: t(10.5, w: 560, color: C.text3)),
                 ]),
               ),
               const SizedBox(width: 18),
@@ -98,16 +101,16 @@ class TodayPage extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(day.sub, style: T.callout, maxLines: 2, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 8),
-                  Text(done >= target && target > 0 ? 'Ana bölüm bitti · soğumaya geç' : 'Kalan ~${(restLeft / 60).ceil()} dk', style: t(13, w: 600, color: C.accent)),
+                  Text(done >= target && target > 0 ? tr('Ana bölüm bitti · soğumaya geç') : trf('Kalan ~{0} dk', [(restLeft / 60).ceil()]), style: t(13, w: 600, color: C.accent)),
                 ]),
               ),
             ]),
           ),
         ),
       ),
-      _section('Isınma', '$warmDone/${warm.slots.length}'),
+      _section(tr('Isınma'), '$warmDone/${warm.slots.length}'),
       _compactList(context, store, warm),
-      _section('Ana bölüm', '${slots.length} hareket'),
+      _section(tr('Ana bölüm'), trf('{0} hareket', [slots.length])),
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         sliver: SliverList.separated(
@@ -120,7 +123,7 @@ class TodayPage extends StatelessWidget {
           },
         ),
       ),
-      _section('Soğuma', '$coolDone/${cool.slots.length}'),
+      _section(tr('Soğuma'), '$coolDone/${cool.slots.length}'),
       _compactList(context, store, cool),
     ];
   }
@@ -222,15 +225,15 @@ class _ExerciseCard extends StatelessWidget {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Text(slot.no, style: t(12.5, w: 720, color: C.accent)),
-              if (swapped) ...[const SizedBox(width: 8), const Pill('Alternatif', color: C.blue)],
-              if (slot.isNew && store.phase == (slot.dose is List ? (slot.dose as List).indexWhere((x) => x != null) : 0)) ...[const SizedBox(width: 8), const Pill('Yeni', color: C.yellow)],
+              Text(slot.shortNo, style: t(12.5, w: 720, color: C.accent)),
+              if (swapped) ...[const SizedBox(width: 8), Pill(tr('Alternatif'), color: C.blue)],
+              if (slot.isNew && store.phase == (slot.dose is List ? (slot.dose as List).indexWhere((x) => x != null) : 0)) ...[const SizedBox(width: 8), Pill(tr('Yeni'), color: C.yellow)],
               const Spacer(),
               if (finished) const Icon(CupertinoIcons.checkmark_seal_fill, color: C.green, size: 18),
             ]),
             const SizedBox(height: 3),
             Text(e.name, style: T.headline),
-            if (swapped) Text('Programdaki: ${store.catalog[slot.id]!.name}', style: T.caption),
+            if (swapped) Text(trf('Programdaki: {0}', [store.catalog[slot.id]!.name]), style: T.caption),
             const SizedBox(height: 6),
             Text(dose, style: t(13.5, w: 560, color: C.text2)),
             if (type != null) ...[
@@ -238,7 +241,7 @@ class _ExerciseCard extends StatelessWidget {
               Row(children: [
                 Expanded(
                   child: Text(
-                    last == null ? 'Henüz kayıt yok' : 'Son ${type.text(last)} · ${shortDate(last['d'])}',
+                    last == null ? tr('Henüz kayıt yok') : trf('Son {0} · {1}', [type.text(last), shortDate(last['d'])]),
                     style: T.caption,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -277,7 +280,7 @@ class _Superset extends StatelessWidget {
           child: Row(children: [
             const Icon(CupertinoIcons.link, size: 14, color: C.accent),
             const SizedBox(width: 6),
-            Text('SÜPERSET · ARADA MOLA YOK', style: t(11.5, w: 700, color: C.accent, ls: 0.8)),
+            Text(tr('SÜPERSET · ARADA MOLA YOK'), style: t(11.5, w: 700, color: C.accent, ls: 0.8)),
           ]),
         ),
         for (var i = 0; i < children.length; i++) ...[if (i > 0) const SizedBox(height: 8), children[i]],
@@ -292,16 +295,62 @@ class _RestDay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final gunlerMetni = _liste([for (final (wd, _) in store.weekOrder) tr(gunler[wd - 1])]);
+    final bugun = DateTime.now().weekday - 1;
+    final spor = store.usesPlan && (store.plan!['takvim'] as List).any((x) => x['gun'] == bugun && x['tur'] == 'spor');
     return Panel(
       padding: const EdgeInsets.all(22),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Icon(CupertinoIcons.moon_stars_fill, color: C.blue, size: 30),
+        Icon(spor ? CupertinoIcons.sportscourt_fill : CupertinoIcons.moon_stars_fill, color: C.blue, size: 30),
         const SizedBox(height: 14),
-        Text('Bugün dinlenme günü', style: T.title2),
+        Text(spor ? tr('Bugün spor günü') : tr('Bugün dinlenme günü'), style: T.title2),
         const SizedBox(height: 8),
-        Text('Program ${[for (final (wd, id) in store.weekOrder) '${gunler[wd - 1]} ${id.substring(3)}'].join(', ')}. Kas, dinlenirken güçlenir. Yine de antrenman yapacaksan yukarıdan günü seç.', style: T.body),
+        Text(
+            spor
+                ? trf('Antrenman günlerin {0}. Spor günü kas için de yük sayılır; bugün salonda ek iş yok.', [gunlerMetni])
+                : trf('Antrenman günlerin {0}. Kas, dinlenirken güçlenir. Yine de antrenman yapacaksan yukarıdan günü seç.', [gunlerMetni]),
+            style: T.body),
         const SizedBox(height: 16),
-        Text('Bugün için: yürüyüş, 7–9 saat uyku ve yeterli protein.', style: T.callout),
+        Text(tr('Bugün için: yürüyüş, 7–9 saat uyku ve yeterli protein.'), style: T.callout),
+      ]),
+    );
+  }
+}
+
+/// "Pazartesi, Çarşamba ve Cumartesi"
+String _liste(List<String> l) => l.length < 2 ? l.join() : '${l.sublist(0, l.length - 1).join(', ')}${tr(' ve ')}${l.last}';
+
+/// Üretilen planda bugünün spor ya da kardiyo notu; program bitince yenileme çağrısı.
+class _PlanToday extends StatelessWidget {
+  const _PlanToday({required this.store});
+  final Store store;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = store.plan!;
+    final bugun = DateTime.now().weekday - 1;
+    final g = (p['takvim'] as List).cast<Map>().where((x) => x['gun'] == bugun).firstOrNull;
+    final k = p['kardiyo'] as Map?;
+    final gk = (k?['gun_basina_dk'] as List?)?.cast<num>();
+    final satirlar = <(IconData, Color, String)>[
+      if (store.planFinished) (CupertinoIcons.flag_fill, C.accent, tr('Programın bitti. Kısa testini yap ve yeni bloku oluştur (Program sekmesi).')),
+      if (g?['tur'] == 'spor') (CupertinoIcons.sportscourt_fill, C.blue, trf('Bugün {0} günü.', [sporAd(g!['amac'])])),
+      if (g?['tur'] == 'kardiyo_mobilite') (CupertinoIcons.heart_fill, C.green, tr('Bugün kardiyo ya da esneme günü.')),
+      if (gk != null && gk.length == 2 && gk[0] > 0 && g?['tur'] != 'spor') (CupertinoIcons.heart_fill, C.green, trf('Kardiyo hedefi: ~{0} dk orta tempo.', [gk[0]])),
+    ];
+    if (satirlar.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(children: [
+        for (final (i, c, s) in satirlar)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(children: [
+              Icon(i, size: 16, color: c),
+              const SizedBox(width: 8),
+              Expanded(child: Text(s, style: t(13.5, w: 560, color: C.text2))),
+            ]),
+          ),
       ]),
     );
   }

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:path_drawing/path_drawing.dart';
 
 import 'data.dart';
+import 'lang.dart';
 import 'theme.dart';
 
 /// Front and back muscle map. Artwork: react-native-body-highlighter (MIT).
@@ -69,8 +70,8 @@ class _BodyMapState extends State<BodyMap> {
       child: art == null
           ? const SizedBox()
           : Row(children: [
-              Expanded(child: _side(art.front, art.outlines.where((o) => o.getBounds().center.dx < 724).toList(), 0, 'Ön')),
-              Expanded(child: _side(art.back, art.outlines.where((o) => o.getBounds().center.dx >= 724).map((o) => o.shift(const Offset(-724, 0))).toList(), 0, 'Arka')),
+              Expanded(child: _side(art.front, art.outlines.where((o) => o.getBounds().center.dx < 724).toList(), 0, tr('Ön'))),
+              Expanded(child: _side(art.back, art.outlines.where((o) => o.getBounds().center.dx >= 724).map((o) => o.shift(const Offset(-724, 0))).toList(), 0, tr('Arka'))),
             ]),
     );
   }
@@ -141,9 +142,80 @@ class BodyLegend extends StatelessWidget {
           Text(s, style: T.caption),
         ]);
     return Wrap(spacing: 16, runSpacing: 6, alignment: WrapAlignment.center, children: [
-      dot(C.accent, 'Ana kas'),
-      dot(const Color(0xFFFFA36F), 'Yardımcı'),
-      dot(const Color(0xFF5E8FD6), 'Sabitleyici'),
+      dot(C.accent, tr('Ana kas')),
+      dot(const Color(0xFFFFA36F), tr('Yardımcı')),
+      dot(const Color(0xFF5E8FD6), tr('Sabitleyici')),
     ]);
   }
+}
+
+/// Front and back map coloured by body part slug (set-up feedback: needed, avoid, extra).
+class SlugMap extends StatefulWidget {
+  const SlugMap({super.key, required this.colors, this.height = 300});
+  final Map<String, Color> colors;
+  final double height;
+
+  @override
+  State<SlugMap> createState() => _SlugMapState();
+}
+
+class _SlugMapState extends State<SlugMap> {
+  BodyArt? _art;
+
+  @override
+  void initState() {
+    super.initState();
+    BodyArt.load().then((a) {
+      if (mounted) setState(() => _art = a);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final art = _art;
+    Widget side(List<(String, Path)> parts, List<Path> outlines, String label) => Column(children: [
+          Expanded(child: CustomPaint(painter: _SlugPainter(parts, outlines, widget.colors), size: Size.infinite)),
+          const SizedBox(height: 6),
+          Text(label, style: T.caption),
+        ]);
+    return SizedBox(
+      height: widget.height,
+      child: art == null
+          ? const SizedBox()
+          : Row(children: [
+              Expanded(child: side(art.front, art.outlines.where((o) => o.getBounds().center.dx < 724).toList(), tr('Ön'))),
+              Expanded(child: side(art.back, art.outlines.where((o) => o.getBounds().center.dx >= 724).map((o) => o.shift(const Offset(-724, 0))).toList(), tr('Arka'))),
+            ]),
+    );
+  }
+}
+
+class _SlugPainter extends CustomPainter {
+  _SlugPainter(this.parts, this.outlines, this.colors);
+  final List<(String, Path)> parts;
+  final List<Path> outlines;
+  final Map<String, Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const box = Rect.fromLTWH(60, 150, 604, 1250);
+    final s = (size.height / box.height).clamp(0.0, size.width / box.width);
+    canvas.save();
+    canvas.translate((size.width - box.width * s) / 2 - box.left * s, (size.height - box.height * s) / 2 - box.top * s);
+    canvas.scale(s);
+    for (final o in outlines) {
+      canvas.drawPath(o, Paint()
+        ..color = const Color(0x1FFFFFFF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2 / s * 0.9);
+    }
+    for (final (slug, path) in parts) {
+      final c = colors[slug] ?? (slug == 'hair' ? const Color(0xFF1F1F23) : const Color(0xFF34343A));
+      canvas.drawPath(path, Paint()..color = c);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _SlugPainter old) => old.colors != colors;
 }

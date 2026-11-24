@@ -8,6 +8,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'data.dart';
 import 'figure.dart';
+import 'lang.dart';
 import 'theme.dart';
 
 /// ExerciseDB V1 (free tier). Their terms: do not store API data; reference
@@ -39,7 +40,8 @@ class ExDb {
 class Figures {
   static Map<String, dynamic> data = {};
   static Future<void> load() async => data = jsonDecode(await rootBundle.loadString('assets/data/figur.json')) as Map<String, dynamic>;
-  static Map? of(Exercise e) => e.figure == null ? null : data[e.figure] as Map?;
+  /// The exercise's own figure, or the one stored under its id.
+  static Map? of(Exercise e) => (e.figure == null ? null : data[e.figure] as Map?) ?? data[e.id] as Map?;
 }
 
 /// Hero media: anatomical GIF from ExerciseDB when there is one, otherwise the
@@ -83,7 +85,7 @@ class _ExerciseMediaState extends State<ExerciseMedia> {
                     future: _url,
                     builder: (context, s) {
                       if (s.connectionState != ConnectionState.done) return _studio(const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF9A9AA0)))));
-                      if (s.data == null) return fig != null ? _figureStage(fig, note: 'Animasyon için internet gerekiyor; çizim gösteriliyor') : _empty(note: 'Animasyon için internet gerekiyor');
+                      if (s.data == null) return fig != null ? _figureStage(fig, note: tr('Animasyon için internet gerekiyor; çizim gösteriliyor')) : _empty(note: tr('Animasyon için internet gerekiyor'));
                       return _studio(Image.network(
                         s.data!,
                         fit: BoxFit.contain,
@@ -107,7 +109,7 @@ class _ExerciseMediaState extends State<ExerciseMedia> {
             bottom: 14,
             child: GestureDetector(
               onTap: () => setState(() => _speed = _speed < 1 ? 1 : 0.4),
-              child: Pill(_speed < 1 ? '½× yavaş' : '1×', color: C.text, fill: const Color(0x33000000)),
+              child: Pill(_speed < 1 ? tr('½× yavaş') : '1×', color: C.text, fill: const Color(0x33000000)),
             ),
           ),
       ]),
@@ -121,7 +123,7 @@ class _ExerciseMediaState extends State<ExerciseMedia> {
       color: Colors.white,
       child: Stack(children: [
         Positioned.fill(child: Padding(padding: const EdgeInsets.fromLTRB(24, 56, 24, 30), child: child)),
-        if (credit) Positioned(left: 16, bottom: 12, child: Text('Animasyon: ExerciseDB', style: t(10.5, w: 520, color: const Color(0xFF8E8E93)))),
+        if (credit) Positioned(left: 16, bottom: 12, child: Text(tr('Animasyon: ExerciseDB'), style: t(10.5, w: 520, color: const Color(0xFF8E8E93)))),
       ]),
     );
   }
@@ -142,7 +144,7 @@ class _ExerciseMediaState extends State<ExerciseMedia> {
   Widget _empty({String? note}) => Container(
         color: C.surface,
         alignment: Alignment.center,
-        child: Text(note ?? 'Bu hareketin animasyonu yok', style: T.caption),
+        child: Text(note ?? tr('Bu hareketin animasyonu yok'), style: T.caption),
       );
 }
 
@@ -170,7 +172,7 @@ class _Switch extends StatelessWidget {
       opacity: 0.45,
       child: Padding(
         padding: const EdgeInsets.all(3),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [seg('Anatomi', !figure, false), seg('Çizim', figure, true)]),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [seg(tr('Anatomi'), !figure, false), seg(tr('Çizim'), figure, true)]),
       ),
     );
   }

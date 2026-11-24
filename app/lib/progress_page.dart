@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'data.dart';
+import 'motor.dart';
 import 'exercise_page.dart';
+import 'lang.dart';
 import 'theme.dart';
 import 'wheel.dart';
 import 'widgets.dart';
@@ -12,6 +14,19 @@ class ProgressPage extends StatelessWidget {
   const ProgressPage({super.key});
 
   static const lifts = ['trapbar', 'frontsquat', 'bench', 'latpull'];
+
+  /// Üretilen planda ana kaldırışlar: haftanın ilk dört farklı bileşik hareketi.
+  static List<String> _planLifts(Store store) {
+    const bilesik = {'squat', 'mentese', 'itme_yatay', 'itme_dikey', 'cekme_yatay', 'cekme_dikey'};
+    final out = <String>[];
+    for (final g in (store.plan!['takvim'] as List).cast<Map>()) {
+      for (final r in (g['hareketler'] as List? ?? const []).cast<Map>()) {
+        final id = Bilgi.b.katalogId(r['hareket']);
+        if (bilesik.contains(r['kategori']) && !out.contains(id)) out.add(id);
+      }
+    }
+    return out.take(4).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,10 +40,10 @@ class ProgressPage extends StatelessWidget {
             sliver: SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
               sliver: SliverList.list(children: [
-                Text('${store.recordCount} KAYIT', style: T.overline),
+                Text(trf('{0} KAYIT', [store.recordCount]), style: T.overline),
                 const SizedBox(height: 6),
-                Text('İlerleme', style: T.largeTitle),
-                const SectionLabel('Ana kaldırışlar'),
+                Text(tr('İlerleme'), style: T.largeTitle),
+                SectionLabel(tr('Ana kaldırışlar')),
                 GridView.count(
                   padding: EdgeInsets.zero,
                   crossAxisCount: 2,
@@ -37,19 +52,21 @@ class ProgressPage extends StatelessWidget {
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
                   childAspectRatio: 1.05,
-                  children: [for (final id in lifts) if (store.catalog[id] != null) _LiftTile(exercise: store.catalog[id]!)],
+                  children: [for (final id in store.usesPlan ? _planLifts(store) : lifts) if (store.catalog[id] != null) _LiftTile(exercise: store.catalog[id]!)],
                 ),
-                const SectionLabel('Vücut'),
+                SectionLabel(tr('Vücut')),
                 _Measurements(store: store),
-                const SectionLabel('Bütün hareketler'),
+                SectionLabel(tr('Bütün hareketler')),
                 _AllExercises(store: store),
-                const SectionLabel('Yedek'),
+                const SectionLabel('Dil / Language'),
+                const _Language(),
+                SectionLabel(tr('Yedek')),
                 _Backup(store: store),
-                const SectionLabel('Kaynaklar'),
+                SectionLabel(tr('Kaynaklar')),
                 Text(
-                  'Anatomik animasyonlar ExerciseDB\'nin ücretsiz katmanından canlı gelir (oss.exercisedb.dev); uygulamada saklanmaz. '
+                  tr('Anatomik animasyonlar ExerciseDB\'nin ücretsiz katmanından canlı gelir (oss.exercisedb.dev); uygulamada saklanmaz. '
                   'Vücut haritası: react-native-body-highlighter (MIT, ELABBASSI Hicham). Yazı tipi: Inter (SIL OFL). '
-                  'Program, ipuçları ve kas açıklamaları bu uygulamanın kendi içeriğidir; tıbbi tavsiye değildir.',
+                  'Program, ipuçları ve kas açıklamaları bu uygulamanın kendi içeriğidir; tıbbi tavsiye değildir.'),
                   style: T.caption,
                 ),
                 const SizedBox(height: 130),
@@ -82,12 +99,12 @@ class _LiftTile extends StatelessWidget {
         Text(exercise.name, style: t(13.5, w: 600, color: C.text2), maxLines: 1, overflow: TextOverflow.ellipsis),
         const Spacer(),
         Text(best == null ? '–' : fmtKg(type.y(best)), style: T.num(34, w: 720, color: best == null ? C.text3 : C.text)),
-        Text(best == null ? 'kayıt yok' : '${type.unit} · rekor', style: T.caption),
+        Text(best == null ? tr('kayıt yok') : trf('{0} · rekor', [type.unit]), style: T.caption),
         const SizedBox(height: 8),
         if (delta != null)
           Pill('${delta >= 0 ? '+' : ''}${fmtKg(delta)} ${type.unit}', color: delta >= 0 ? C.green : C.red)
         else
-          Text(last == null ? '' : 'son ${shortDate(last['d'])}', style: T.caption),
+          Text(last == null ? '' : trf('son {0}', [shortDate(last['d'])]), style: T.caption),
       ]),
     );
   }
@@ -113,7 +130,7 @@ class _Measurements extends StatelessWidget {
       final d = pts.length > 1 ? pts.last.$2 - pts.first.$2 : null;
       return Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: T.caption),
+          Text(tr(label), style: T.caption),
           const SizedBox(height: 4),
           Text(v == null ? '–' : fmtKg(v), style: T.num(26, color: v == null ? C.text3 : C.text)),
           Text(d == null ? unit : '${d >= 0 ? '+' : ''}${fmtKg(d)} $unit', style: t(12, w: 600, color: d == null ? C.text3 : C.text2)),
@@ -128,16 +145,16 @@ class _Measurements extends StatelessWidget {
         const SizedBox(height: 16),
         if (kilo.length > 1) ...[MiniChart(points: kilo, unit: 'kg', height: 90), const SizedBox(height: 16)],
         QuietButton(
-          label: 'Ölçüm ekle',
+          label: tr('Ölçüm ekle'),
           icon: CupertinoIcons.add,
           onTap: () async {
             final r = await showWheelSheet(
               context,
-              title: 'Ölçüm',
-              subtitle: 'Kiloyu sabah aç ölç; beli göbek hizasından. Ölçmediğini "–" bırak.',
+              title: tr('Ölçüm'),
+              subtitle: tr('Kiloyu sabah aç ölç; beli göbek hizasından. Ölçmediğini "–" bırak.'),
               fields: fields,
               values: {for (final f in fields) f.key: store.lastMeasure(f.key)},
-              action: 'Kaydet',
+              action: tr('Kaydet'),
             );
             if (r == null) return;
             final vals = <String, num>{for (final e in r.entries) if (e.value != null) e.key: e.value!};
@@ -159,9 +176,9 @@ class _Measurements extends StatelessWidget {
                     child: Text(
                       [
                         if (r['kilo'] != null) '${fmtKg(r['kilo'])} kg',
-                        if (r['bel'] != null) 'bel ${fmtKg(r['bel'])}',
-                        if (r['sicrama'] != null) 'sıçrama ${r['sicrama']}',
-                        if (r['diz'] != null) 'diz ${r['diz']}/10',
+                        if (r['bel'] != null) trf('bel {0}', [fmtKg(r['bel'])]),
+                        if (r['sicrama'] != null) trf('sıçrama {0}', [r['sicrama']]),
+                        if (r['diz'] != null) trf('diz {0}/10', [r['diz']]),
                       ].join(' · '),
                       style: T.num(14, w: 520),
                     ),
@@ -183,7 +200,7 @@ class _AllExercises extends StatelessWidget {
   Widget build(BuildContext context) {
     final withRecs = store.catalog.values.where((e) => e.logs && store.records(e.id).isNotEmpty).toList()
       ..sort((a, b) => n(store.last(b.id)!['t']).compareTo(n(store.last(a.id)!['t'])));
-    if (withRecs.isEmpty) return Text('Henüz kayıt yok.', style: T.callout);
+    if (withRecs.isEmpty) return Text(tr('Henüz kayıt yok.'), style: T.callout);
     return Panel(
       padding: EdgeInsets.zero,
       child: Column(children: [
@@ -215,38 +232,61 @@ class _Backup extends StatelessWidget {
   Widget build(BuildContext context) {
     return Panel(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Kayıtların yalnızca bu telefonda. Dışa aktar bütün kayıtları panoya kopyalar; bir yerde sakla. İçe aktar, panodaki yedekten yalnızca eksikleri ekler, hiçbir şeyi silmez.', style: T.callout),
+        Text(tr('Kayıtların yalnızca bu telefonda. Dışa aktar bütün kayıtları panoya kopyalar; bir yerde sakla. İçe aktar, panodaki yedekten yalnızca eksikleri ekler, hiçbir şeyi silmez.'), style: T.callout),
         const SizedBox(height: 14),
         Row(children: [
           Expanded(
             child: QuietButton(
-              label: 'Dışa aktar',
+              label: tr('Dışa aktar'),
               icon: CupertinoIcons.square_arrow_up,
               onTap: () async {
                 await Clipboard.setData(ClipboardData(text: store.exportText()));
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Yedek panoya kopyalandı.')));
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Yedek panoya kopyalandı.'))));
               },
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: QuietButton(
-              label: 'İçe aktar',
+              label: tr('İçe aktar'),
               icon: CupertinoIcons.square_arrow_down,
               onTap: () async {
                 final d = await Clipboard.getData('text/plain');
                 String msg;
                 try {
                   final c = store.importText(d?.text ?? '');
-                  msg = c == 0 ? 'Eklenecek yeni kayıt yok.' : '$c kayıt eklendi.';
+                  msg = c == 0 ? tr('Eklenecek yeni kayıt yok.') : trf('{0} kayıt eklendi.', [c]);
                 } catch (_) {
-                  msg = 'Panodaki metin bir yedek değil. Hiçbir şey değişmedi.';
+                  msg = tr('Panodaki metin bir yedek değil. Hiçbir şey değişmedi.');
                 }
                 if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
               },
             ),
           ),
         ]),
+      ]),
+    );
+  }
+}
+
+/// Interface and content language: Türkçe | English. Saved on the phone and
+/// applied at once.
+class _Language extends StatelessWidget {
+  const _Language();
+
+  @override
+  Widget build(BuildContext context) {
+    return Panel(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Segmented<Dil>(
+          items: const [(Dil.tr, 'Türkçe'), (Dil.en, 'English')],
+          value: Lang.current.value,
+          onChanged: (d) {
+            if (d != Lang.current.value) Lang.set(d);
+          },
+        ),
+        const SizedBox(height: 10),
+        Text(tr('Uygulamanın dili. İngilizcede hareket içeriği de İngilizce görünür.'), style: T.caption),
       ]),
     );
   }

@@ -8,3 +8,5 @@
 | Flutter paketleri: `path_provider`, `path_drawing`, `wakelock_plus`, `cupertino_icons` | `app/pubspec.yaml` | Her paketin kendi lisansı (BSD-3 / MIT) |
 
 Program, hareket açıklamaları, kas listeleri, çizim animasyonları ve arayüz bu deponun kendi içeriğidir ve MIT lisansı altındadır.
+
+Kurulum akışının karar kuralları (haftalık hacim, toparlanma süreleri, ağrı izleme, iyileşme süreleri, kırmızı bayraklar, PAR-Q+ soruları) yayımlanmış kılavuz ve araştırmalardan derlendi: WHO 2020, ACSM, NSCA, PAR-Q+ Collaboration ve hakemli spor hekimliği dergileri. Metinler bu deponun kendi yazımıdır; kaynakların kendisi depoda yer almaz. Öneriler tıbbi tavsiye değildir.

@@ -6,39 +6,60 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'lang.dart';
+import 'motor.dart';
+import 'plan_program.dart';
+
 // ---------------------------------------------------------------------------
 // Catalog
 // ---------------------------------------------------------------------------
 
 class Muscle {
-  Muscle(this.region, this.name, this.latin, this.detail);
-  final String region, name, latin, detail;
-  factory Muscle.fromJson(Map j) => Muscle(j['bolge'] ?? '', j['ad'] ?? '', j['latince'] ?? '', j['detay'] ?? '');
+  Muscle(this.region, String name, this.latin, String detail, {this.ref})
+      : _name = name,
+        _detail = detail;
+  final String region, latin;
+  final String _name, _detail;
+
+  /// (exercise id, group, index) for the English overlay.
+  final (String, String, int)? ref;
+  factory Muscle.fromJson(Map j, [(String, String, int)? ref]) => Muscle(j['bolge'] ?? '', j['ad'] ?? '', j['latince'] ?? '', j['detay'] ?? '', ref: ref);
+
+  Map? get _x {
+    final r = ref;
+    if (r == null) return null;
+    final l = (Lang.exercise(r.$1)?['kaslar'] as Map?)?[r.$2];
+    return l is List && r.$3 < l.length && l[r.$3] is Map ? l[r.$3] as Map : null;
+  }
+
+  String get name => Lang.en ? pick(_name, _x?['ad'] ?? Lang.muscle(_name)) : _name;
+  String get detail => Lang.en ? pick(_detail, _x?['detay']) : _detail;
 }
 
 class CmSpec {
-  CmSpec(this.label, this.min, this.max, this.first);
-  final String label;
+  CmSpec(String label, this.min, this.max, this.first) : _label = label;
+  final String _label;
+  String get label => tr(_label);
   final int min, max, first;
 }
 
 class Exercise {
   Exercise.fromJson(Map j)
       : id = j['id'],
-        name = j['ad'],
+        _name = j['ad'],
         en = j['en'] ?? '',
         inProgram = j['program'] == true,
         kind = j['kayit'],
         cm = j['cm'] == null ? null : CmSpec(j['cm']['etiket'] ?? 'cm', (j['cm']['min'] as num).toInt(), (j['cm']['max'] as num).toInt(), (j['cm']['ilk'] as num).toInt()),
         difficulty = (j['zorluk'] as num?)?.toInt() ?? 2,
-        equipment = List<String>.from(j['ekipman'] ?? const []),
-        purpose = j['amac'] ?? '',
-        cues = List<String>.from(j['ipuclari'] ?? const []),
-        mistakes = List<String>.from(j['hatalar'] ?? const []),
-        knee = j['diz'],
-        primary = [for (final m in (j['kaslar']?['ana'] ?? const [])) Muscle.fromJson(m)],
-        secondary = [for (final m in (j['kaslar']?['yardimci'] ?? const [])) Muscle.fromJson(m)],
-        stabilizers = [for (final m in (j['kaslar']?['sabitleyici'] ?? const [])) Muscle.fromJson(m)],
+        _equipment = List<String>.from(j['ekipman'] ?? const []),
+        _purpose = j['amac'] ?? '',
+        _cues = List<String>.from(j['ipuclari'] ?? const []),
+        _mistakes = List<String>.from(j['hatalar'] ?? const []),
+        _knee = j['diz'],
+        primary = [for (final (i, m) in ((j['kaslar']?['ana'] ?? const []) as List).indexed) Muscle.fromJson(m, (j['id'], 'ana', i))],
+        secondary = [for (final (i, m) in ((j['kaslar']?['yardimci'] ?? const []) as List).indexed) Muscle.fromJson(m, (j['id'], 'yardimci', i))],
+        stabilizers = [for (final (i, m) in ((j['kaslar']?['sabitleyici'] ?? const []) as List).indexed) Muscle.fromJson(m, (j['id'], 'sabitleyici', i))],
         altGeneral = j['alternatif']?['genel'],
         altEasier = j['alternatif']?['kolay'],
         altHarder = j['alternatif']?['zor'],
@@ -46,14 +67,24 @@ class Exercise {
         figure = j['medya']?['figur'],
         rest = (j['mola'] as num?)?.toInt() ?? 90;
 
-  final String id, name, en;
+  final String id, en;
+  final String _name;
   final bool inProgram;
   final String? kind;
   final CmSpec? cm;
   final int difficulty;
-  final List<String> equipment, cues, mistakes;
-  final String purpose;
-  final String? knee;
+  final List<String> _equipment, _cues, _mistakes;
+  final String _purpose;
+  final String? _knee;
+
+  // Text fields read the English overlay when English is on; Turkish otherwise.
+  Map? get _x => Lang.en ? Lang.exercise(id) : null;
+  String get name => Lang.en ? pick(_name, _x?['ad'] ?? (en.isEmpty ? null : en)) : _name;
+  String get purpose => Lang.en ? pick(_purpose, _x?['amac']) : _purpose;
+  List<String> get cues => Lang.en ? pickList(_cues, _x?['ipuclari']) : _cues;
+  List<String> get mistakes => Lang.en ? pickList(_mistakes, _x?['hatalar']) : _mistakes;
+  String? get knee => _knee == null ? null : (Lang.en ? pick(_knee, _x?['diz']) : _knee);
+  List<String> get equipment => !Lang.en ? _equipment : (_x?['ekipman'] is List ? pickList(_equipment, _x?['ekipman']) : [for (final q in _equipment) Lang.equipment(q) ?? q]);
   final List<Muscle> primary, secondary, stabilizers;
   final String? altGeneral, altEasier, altHarder;
   final String? exdb, figure;
@@ -86,11 +117,11 @@ class LogType {
         return LogType._(kind, const [Field('kg', 'Ağırlık', 0, 300, fraction: true, unit: 'kg'), Field('r', 'Tekrar', 1, 60)], (r) => [n(r['kg']), n(r['r'])], (r) => '${fmtKg(r['kg'])} kg × ${n(r['r'])}', (r) => n(r['kg']), 'kg');
       case 'bw':
         return LogType._(kind, const [Field('r', 'Tekrar', 1, 60), Field('kg', 'Ek ağırlık', 0, 100, fraction: true, optional: true, unit: 'kg')], (r) => [n(r['kg']), n(r['r'])],
-            (r) => n(r['kg']) > 0 ? '+${fmtKg(r['kg'])} kg × ${n(r['r'])}' : '${n(r['r'])} tekrar', (r) => n(r['r']), 'tekrar');
+            (r) => n(r['kg']) > 0 ? '+${fmtKg(r['kg'])} kg × ${n(r['r'])}' : trf('{0} tekrar', [n(r['r'])]), (r) => n(r['r']), tr('tekrar'));
       case 'bw0':
-        return LogType._(kind, const [Field('r', 'Tekrar', 1, 60)], (r) => [n(r['r'])], (r) => '${n(r['r'])} tekrar', (r) => n(r['r']), 'tekrar');
+        return LogType._(kind, const [Field('r', 'Tekrar', 1, 60)], (r) => [n(r['r'])], (r) => trf('{0} tekrar', [n(r['r'])]), (r) => n(r['r']), tr('tekrar'));
       case 'sn':
-        return LogType._(kind, const [Field('sn', 'Süre', 5, 300, step: 5, unit: 'sn')], (r) => [n(r['sn'])], (r) => '${n(r['sn'])} sn', (r) => n(r['sn']), 'sn');
+        return LogType._(kind, const [Field('sn', 'Süre', 5, 300, step: 5, unit: 'sn')], (r) => [n(r['sn'])], (r) => '${n(r['sn'])} ${tr('sn')}', (r) => n(r['sn']), tr('sn'));
       case 'm':
         return LogType._(kind, const [Field('kg', 'Tek el', 0, 150, fraction: true, unit: 'kg'), Field('m', 'Mesafe', 5, 200, step: 5, unit: 'm')], (r) => [n(r['kg']), n(r['m'])],
             (r) => '${fmtKg(r['kg'])} kg × ${n(r['m'])} m', (r) => n(r['kg']), 'kg');
@@ -118,7 +149,7 @@ class LogType {
   }
 
   /// "60 kg × 8 · 3 set" for legacy whole-exercise records, plain text for sets.
-  String full(Map r) => text(r) + ((r['s'] ?? 1) > 1 ? ' · ${r['s']} set' : '');
+  String full(Map r) => text(r) + ((r['s'] ?? 1) > 1 ? trf(' · {0} set', [r['s']]) : '');
 }
 
 num n(dynamic v) => v is num ? v : (num.tryParse('$v') ?? 0);
@@ -136,50 +167,75 @@ String fmtKg(dynamic v) {
 // ---------------------------------------------------------------------------
 
 class Phase {
-  Phase(this.weeks, this.name, this.rir, this.text);
-  final String weeks, name, rir, text;
+  Phase(this.weeks, String name, this.rir, String text)
+      : _name = name,
+        _text = text;
+  final String weeks, rir;
+  final String _name, _text;
+  String get name => Lang.en ? pick(_name, Lang.phase(weeks)?['name']) : _name;
+  String get text => Lang.en ? pick(_text, Lang.phase(weeks)?['txt']) : _text;
 }
 
 class Slot {
-  Slot.fromJson(Map j)
+  Slot.fromJson(Map j, [this.dayId = ''])
       : id = j['id'],
         no = j['no'],
-        name = j['n'],
+        _name = j['n'],
         dose = j['d'],
-        cue = j['cue'] ?? '',
-        alt = j['alt'],
+        _cue = j['cue'] ?? '',
+        _alt = j['alt'],
         tags = List<String>.from(j['g'] ?? const []),
         superset = j['ss'] == true,
         isNew = j['isNew'] == true;
 
-  final String id, no, name, cue;
-  final dynamic dose; // String or List<String?> indexed by phase
-  final String? alt;
+  final String id, no, dayId;
+  final String _name, _cue;
+  final dynamic dose; // String or List<String?> indexed by phase (Turkish)
+  final String? _alt;
+
+  Map? get _x => Lang.en ? Lang.slot(dayId, '$no:$id') : null;
+  String get name => Lang.en ? pick(_name, _x?['n']) : _name;
+  String get cue => Lang.en ? pick(_cue, _x?['cue']) : _cue;
+  String? get alt => _alt == null ? null : (Lang.en ? pick(_alt, _x?['alt']) : _alt);
   final List<String> tags;
   final bool superset, isNew;
 
-  String? doseFor(int phase) => dose is String ? dose as String : (dose as List)[phase] as String?;
+  String? doseFor(int phase) {
+    final d = dose is String ? dose as String : (dose as List)[phase] as String?;
+    if (d == null || !Lang.en) return d;
+    final e = _x?['d'];
+    final v = e is List ? (phase < e.length ? e[phase] : null) : e;
+    return pick(d, v);
+  }
+
+  /// Number without the day letter: A2 → 2, A5a → 5a. Days are named by weekday.
+  String get shortNo => no.replaceFirst(RegExp(r'^[ABC]'), '');
 }
 
 class Day {
   Day.fromJson(Map j)
       : id = j['id'],
-        tag = j['tag'],
-        title = j['title'],
-        sub = j['sub'],
-        slots = [for (final i in j['items']) Slot.fromJson(i)];
-  final String id, tag, title, sub;
+        _tag = j['tag'],
+        _title = j['title'],
+        _sub = j['sub'],
+        slots = [for (final i in j['items']) Slot.fromJson(i, j['id'])];
+  final String id;
+  final String _tag, _title, _sub;
+  String get tag => Lang.en ? pick(_tag, Lang.day(id)?['tag']) : _tag;
+  String get title => Lang.en ? pick(_title, Lang.day(id)?['title']) : _title;
+  String get sub => Lang.en ? pick(_sub, Lang.day(id)?['sub']) : _sub;
   final List<Slot> slots;
   bool get isMain => id.startsWith('gun');
   String get letter => id.startsWith('gun') ? id.substring(3) : '';
 }
 
 class ProgramData {
-  ProgramData(this.phases, this.weekPhase, this.days, this.tags);
+  ProgramData(this.phases, this.weekPhase, this.days, Map<String, String> tags) : _tags = tags;
   final List<Phase> phases;
   final List<int> weekPhase;
   final List<Day> days;
-  final Map<String, String> tags;
+  final Map<String, String> _tags;
+  Map<String, String> get tags => Lang.en ? {..._tags, ...Lang.tags} : _tags;
 
   Day day(String id) => days.firstWhere((d) => d.id == id);
   int phaseOf(int week) => weekPhase[(week - 1).clamp(0, 11)];
@@ -204,7 +260,7 @@ const gunler = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumart
 const gunKisa = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 String shortDate(String iso) {
   final d = parseDay(iso);
-  return '${d.day} ${aylar[d.month - 1]}';
+  return '${d.day} ${tr(aylar[d.month - 1])}';
 }
 
 String uid() => DateTime.now().microsecondsSinceEpoch.toRadixString(36) + math.Random().nextInt(1 << 20).toRadixString(36);
@@ -213,17 +269,77 @@ String uid() => DateTime.now().microsecondsSinceEpoch.toRadixString(36) + math.R
 const legacyKeyMap = {'chinup': 'latpull'};
 
 class Store extends ChangeNotifier {
-  Store._(this.catalog, this.program, this._file, this._data);
+  Store._(this.catalog, this._fixed, this._file, this._data) {
+    _buildPlan();
+    // Day titles and doses of the generated plan are built in the interface language.
+    Lang.current.addListener(() {
+      _buildPlan();
+      notifyListeners();
+    });
+  }
 
   final Map<String, Exercise> catalog;
-  final ProgramData program;
+  final ProgramData _fixed;
   final File _file;
   final Map<String, dynamic> _data;
+
+  /// The public build has no fixed program: everyone starts from the set-up flow.
+  static const genel = true;
+
+  // ---- generated plan (set-up flow) ----------------------------------------
+
+  ProgramData? _generated;
+
+  /// Saved set-up answers ([Girdi] as JSON) and the plan built from them.
+  Map<String, dynamic>? get profile => (_data['profil'] as Map?)?.cast<String, dynamic>();
+  Map<String, dynamic>? get plan => (_data['plan'] as Map?)?.cast<String, dynamic>();
+
+  /// The generated plan is in use (the owner can switch back to the fixed one).
+  bool get usesPlan => _generated != null;
+  bool get hasPlan => plan != null;
+  bool get needsSetup => genel && !hasPlan;
+  bool get acceptedNotice => _data['onay'] != null;
+
+  ProgramData get program => _generated ?? _fixed;
+
+  void _buildPlan() {
+    final p = plan;
+    _generated = (p != null && _data['planKullan'] != false) ? planToProgram(p) : null;
+  }
+
+  void acceptNotice() {
+    _data['onay'] = DateTime.now().toIso8601String();
+    _changed();
+  }
+
+  /// Saves the set-up answers and the plan; the plan starts this week.
+  void savePlan(Girdi girdi, Plan p, Map<String, dynamic> extra) {
+    final now = DateTime.now();
+    final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+    _data['profil'] = {...girdi.toJson(), ...extra};
+    _data['plan'] = {...p.toJson(), 'baslangic': isoDay(monday), 'olusturma': now.toIso8601String(), 'ay': girdi.ay};
+    _data['planKullan'] = true;
+    _data.remove('secilen');
+    _buildPlan();
+    _changed();
+  }
+
+  void usePlan(bool on) {
+    _data['planKullan'] = on;
+    _data.remove('secilen');
+    _buildPlan();
+    _changed();
+  }
+
+  int get planWeeks => (plan?['haftalar'] as List?)?.length ?? 12;
+  bool get planFinished => usesPlan && DateTime.now().difference(start).inDays ~/ 7 + 1 > planWeeks;
 
   static Future<Store> open() async {
     final cat = jsonDecode(await rootBundle.loadString('assets/data/katalog.json')) as List;
     final prog = jsonDecode(await rootBundle.loadString('assets/data/program.json')) as Map;
-    final catalog = {for (final e in cat) e['id'] as String: Exercise.fromJson(e)};
+    final ek = jsonDecode(await rootBundle.loadString('assets/data/katalog_ek.json')) as List;
+    final catalog = {for (final e in [...cat, ...ek]) e['id'] as String: Exercise.fromJson(e)};
+    await Bilgi.yukle();
     final program = ProgramData(
       [for (final p in prog['PH']) Phase(p['w'], p['name'], p['rir'], p['txt'])],
       List<int>.from(prog['WK']),
@@ -320,6 +436,7 @@ class Store extends ChangeNotifier {
 
   /// Program start: the Monday of the first recorded workout unless set.
   DateTime get start {
+    if (usesPlan) return parseDay(plan!['baslangic'] as String);
     final s = _data['baslangic'] as String?;
     if (s != null) return parseDay(s);
     var first = DateTime.now();
@@ -335,13 +452,19 @@ class Store extends ChangeNotifier {
 
   int get week {
     final w = DateTime.now().difference(start).inDays ~/ 7 + 1;
-    return w.clamp(1, 12);
+    return w.clamp(1, usesPlan ? planWeeks : 12);
   }
 
   void setWeek(int w) {
     final now = DateTime.now();
     final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
-    _data['baslangic'] = isoDay(monday.subtract(Duration(days: 7 * (w - 1))));
+    final iso = isoDay(monday.subtract(Duration(days: 7 * (w - 1))));
+    if (usesPlan) {
+      _data['plan'] = {...plan!, 'baslangic': iso};
+      _buildPlan();
+    } else {
+      _data['baslangic'] = iso;
+    }
     _changed();
   }
 
@@ -354,6 +477,7 @@ class Store extends ChangeNotifier {
   static const defaultSchedule = {1: 'gunA', 3: 'gunB', 6: 'gunC'};
 
   Map<int, String> get schedule {
+    if (usesPlan) return planSchedule(plan!);
     final m = _data['duzen'] as Map?;
     if (m == null) return defaultSchedule;
     return {for (final e in m.entries) int.parse('${e.key}'): '${e.value}'};
@@ -375,6 +499,12 @@ class Store extends ChangeNotifier {
   }
 
   String? get scheduledDay => schedule[DateTime.now().weekday];
+
+  /// Weekday name a program day falls on ("Pazartesi"), or its own tag.
+  String dayName(Day d) {
+    final wd = weekdayOf(d.id);
+    return wd == null ? d.tag : tr(gunler[wd - 1]);
+  }
 
   String? get chosenDay {
     final c = _data['secilen'] as Map?;

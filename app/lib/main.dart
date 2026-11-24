@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'data.dart';
+import 'kurulum.dart';
+import 'lang.dart';
 import 'media.dart';
 import 'program_page.dart';
 import 'progress_page.dart';
@@ -20,7 +22,9 @@ Future<void> main() async {
     systemNavigationBarIconBrightness: Brightness.light,
   ));
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  await Lang.load();
   final results = await Future.wait([Store.open(), Figures.load()]);
+  App.ofStore = results[0] as Store;
   runApp(SahaApp(store: results[0] as Store));
 }
 
@@ -34,11 +38,17 @@ class SahaApp extends StatelessWidget {
     return App(
       store: store,
       rest: rest,
-      child: MaterialApp(
-        title: 'Saha',
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(),
-        home: const Shell(),
+      child: LangScope(
+        child: MaterialApp(
+          title: 'Saha',
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(),
+          // Genel sürüm: program yoksa önce kurulum akışı.
+          home: ListenableBuilder(
+            listenable: store,
+            builder: (context, _) => store.needsSetup ? const KurulumAkisi(ilk: true) : const Shell(),
+          ),
+        ),
       ),
     );
   }
@@ -82,9 +92,9 @@ class _ShellState extends State<Shell> {
           decoration: const BoxDecoration(border: Border(top: BorderSide(color: C.line))),
           padding: EdgeInsets.only(bottom: bottom, top: 6),
           child: Row(children: [
-            _tabItem(0, CupertinoIcons.flame_fill, 'Bugün'),
-            _tabItem(1, CupertinoIcons.square_list_fill, 'Program'),
-            _tabItem(2, CupertinoIcons.chart_bar_alt_fill, 'İlerleme'),
+            _tabItem(0, CupertinoIcons.flame_fill, tr('Bugün')),
+            _tabItem(1, CupertinoIcons.square_list_fill, tr('Program')),
+            _tabItem(2, CupertinoIcons.chart_bar_alt_fill, tr('İlerleme')),
           ]),
         ),
       ),
@@ -131,7 +141,7 @@ class _RestPill extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('MOLA', style: t(10.5, w: 700, color: C.accent, ls: 0.8)),
+              Text(tr('MOLA'), style: t(10.5, w: 700, color: C.accent, ls: 0.8)),
               Text(rest.label, style: t(13.5, w: 600), overflow: TextOverflow.ellipsis),
             ]),
           ),

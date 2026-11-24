@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import 'lang.dart';
+
 /// Design tokens. Dark, near-black surfaces with one warm accent, in the
 /// spirit of Apple's dark system palette.
 class C {
@@ -49,7 +51,8 @@ FontWeight _weight(double w) {
 }
 
 /// Upper case with Turkish dotted İ (Dart's toUpperCase maps i to I).
-String trUpper(String s) => s.replaceAll('i', 'İ').toUpperCase();
+/// In English plain upper case.
+String trUpper(String s) => Lang.en ? s.toUpperCase() : s.replaceAll('i', 'İ').toUpperCase();
 
 class T {
   static TextStyle get largeTitle => t(34, w: 760, ls: -0.8, h: 1.08);

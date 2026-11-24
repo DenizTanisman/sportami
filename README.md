@@ -1,36 +1,56 @@
 # Saha
 
-**12 haftalık bir kuvvet ve sıçrama programını adım adım yürüten, kayıtlarını tutan Android uygulaması.**
+**Ağrılarına, amaçlarına ve zamanına göre araştırmalara dayalı bir antrenman programı kuran ve bu programı adım adım yürüten Android uygulaması.**
 
-Program haftada 3 gün çalışılır (A, B, C) ve basketbol oynayanlar için tasarlandı: darbeye dayanıklı bir gövde, dizi koruyarak sıçrama ve güçlü bir üst vücut hedefler. Uygulama hangi gün ne yapacağını, hareketi nasıl yapacağını ve hangi kasların çalıştığını gösterir. Her seti metal tekerleklerle kaydedersin, setler arası molayı da kendisi sayar.
+> **Uyarı:** Buradaki öneriler, herkese açık yayımlanmış araştırmalara ve kılavuzlara dayanır. Doktor, fizyoterapist ya da diyetisyen tavsiyesi değildir. Doğru bilgi için uzmana danışınız.
 
 <p>
-  <img src="docs/bugun.jpg" width="24%" alt="Bugün ekranı: günün planı, ilerleme halkası, ısınma listesi">
-  <img src="docs/hareket.jpg" width="24%" alt="Hareket sayfası: animasyon ve metal tekerlekli set kaydı">
-  <img src="docs/kaslar.jpg" width="24%" alt="Çalışan bölgeler: vücut haritası ve kas listesi">
-  <img src="docs/ilerleme.jpg" width="24%" alt="İlerleme: rekorlar ve vücut ölçümleri">
+  <img src="docs/kurulum-rahatsizlik.jpg" width="24%" alt="Kurulum: rahatsızlık seçimi, ağrı puanı ve kırmızı bayraklar">
+  <img src="docs/kurulum-kaslar.jpg" width="24%" alt="Kurulum: amaçların istediği kas grupları vücut haritasında">
+  <img src="docs/kurulum-program.jpg" width="24%" alt="Kurulum: hazır program, haftanın günleri ve hareketler">
+  <img src="docs/bugun.jpg" width="24%" alt="Bugün ekranı: günün planı">
 </p>
+
+## Nasıl çalışır
+
+İlk açılışta kısa bir kurulum akışı vardır:
+
+1. **Uyarı ve onay.** Verilerin yalnız telefonda kalır; hesap da sunucu da yoktur.
+2. **Profil:** cinsiyet, yaş ve antrenman geçmişi.
+3. **Sağlık taraması:** PAR-Q+ (2023) soruları. "Evet" yanıtı varsa önce doktor onayı istenir.
+4. **Rahatsızlıklar:** 41 yaygın ağrı ve sakatlık arasından seçim yapılır.
+   - Ağrı için 0–10 arası puan girilir.
+   - Burkulma ve yırtılmalarda derece ve ne zaman olduğu girilir.
+   - Kırmızı bayrak işaretlenirse program çıkarılmaz ve doktora yönlendirilirsin.
+5. **Amaçlar:** birden fazla seçilebilir; örneğin basketbol ve kas kazanma, ya da kilo verme ve genel sağlık.
+6. **Kas grupları:** Amaçlarının istediği kaslar vücut haritasında gösterilir. Rahatsızlık yüzünden şimdilik çalışılmaması gereken bölgeler ayrıca belirtilir. İstersen kas grubu ekleyebilirsin; hasarlı bölgeler seçilemez.
+7. **Haftalık ihtiyaç:** Kas başına haftalık set ve bundan çıkan gün sayısı gösterilir.
+8. **Yer ve günler:** salon, ev ya da dış mekân; evdeysen elindeki ekipman. Kuvvet günlerini ve spor antrenmanı/maç günlerini seçersin.
+9. **Süre:** 1 ay (bir blok) ya da 2 ay (iki blok).
+
+Ardından program kurulur. Uygulama program boyunca şunları yapar:
+
+- Seçtiğin günleri aynı kası yükleyen seanslar arasında yeterli toparlanma kalacak şekilde böler (örneğin Cumartesi → Pazartesi 48 saattir). Gerekirse tüm vücut yerine üst/alt bölünmesi kurar.
+- Her seansa temel kalıpları koyar: squat, menteşe, itme, çekme ve core. Ağrılı bölgeye uygun olmayan hareketin yerine daha kolay alternatifini koyar.
+- Sıçrama çalışmalarını yalnız diz ve ayak bileği sağlıklıysa, en az 48 saat arayla verir.
+- Spor gününden önceki seansta bacak yükünü hafifletir.
+- WHO önerisine göre haftalık kardiyo hedefini ekler.
+- Programı 4 haftalık bloklara böler. Her hafta için RIR ve ilerleme kuralı vardır; seviyene göre deload haftası eklenir ve her blok sonunda test yapılır.
+
+Kuralların hepsi yayımlanmış kılavuz ve araştırmalara dayanır: WHO 2020, ACSM, NSCA ve spor hekimliği dergileri. Bunlara hacim–frekans meta-analizleri, ağrı izleme modeli ve sakatlık iyileşme süreleri de dahildir.
 
 ## Özellikler
 
-- **Bugün:** O günün planını gösterir: ısınma, ana bölüm ve soğuma. Süperset olan hareketler birlikte gruplanır. Kartlarda son kaydın, rekorun ve set ilerlemen görünür.
-- **12 hafta, 7 faz:** Temel, Kuvvet I-II, hafif hafta, Güç I-II ve zirve. Set ve tekrarlar seçili haftaya göre değişir.
-- **Hareket sayfası:**
-  - **Animasyon:** varsa anatomik animasyon (ExerciseDB'den canlı gelir), yoksa uygulamanın kendi çizimi.
-  - **Detay:** zorluk, amaç, yaparken dikkat edilecekler, sık hatalar ve gerekiyorsa diz için bir not.
-  - **Çalışan bölgeler:** ön ve arka vücut haritası. Ana kaslar, yardımcılar ve sabitleyiciler ayrı renkte gösterilir; her kasın hangi bölümünün çalıştığı da yazar.
-  - **Alternatifler:** her hareketin genel, daha kolay ve daha zor alternatifi. Birini seçersen o günün planında doğrudan o görünür.
-- **Metal tekerlekli kayıt:** Fırçalanmış metal görünümlü tekerleklerle ağırlığı (0,25 kg adımla) ve tekrarı seçersin; her çentikte hafif titreşim olur. Değerler son kaydınla hazır gelir.
-- **Mola sayacı:** Her hareketin kendi mola süresi vardır. Süre bitince telefon titrer; mola boyunca ekran açık kalır.
-- **İlerleme:** Ana kaldırışların rekorları ve grafikleri. Kilo, bel ve dikey sıçrama ölçümleri de tekerlekle girilir.
-- **Gün düzeni:** Varsayılan Pazartesi A, Çarşamba B, Cumartesi C. Program › Gün düzeni'nden değiştirilebilir.
-- **Yedek:** Kayıtlar yalnızca telefonda tutulur. Dışa aktarınca bütün kayıtlar panoya kopyalanır. İçe aktarma hiçbir şeyi silmez, yalnızca eksik kayıtları ekler.
-
-<p>
-  <img src="docs/program.jpg" width="24%" alt="Program: 12 hafta ve gün düzeni">
-  <img src="docs/mola.jpg" width="24%" alt="Mola sayacı">
-  <img src="docs/olcum.jpg" width="24%" alt="Tekerlekli ölçüm girişi">
-</p>
+- **Bugün:** Günün planını gösterir: ısınma, ana bölüm ve soğuma. Kartlarda son kayıt, rekor ve set ilerlemesi görünür. Spor ve kardiyo günleri de belirtilir.
+- **267 hareket**, her biri için:
+  - **Animasyon:** Kendi çubuk-adam animasyonu hepsinde var. Varsa ExerciseDB'den anatomik animasyon da canlı gelir.
+  - **Detay:** zorluk, yaparken dikkat edilecekler ve sık hatalar.
+  - **Çalışan bölgeler:** vücut haritası.
+  - **Alternatifler:** genel, daha kolay ve daha zor alternatif.
+- **Metal tekerlekli kayıt:** Ağırlık ve tekrar fırçalanmış metal görünümlü tekerleklerle seçilir. Her setin mola süresi otomatik sayılır.
+- **İlerleme:** Ana kaldırışların rekorları ve grafikleri; vücut ölçümleri.
+- **Türkçe ve İngilizce:** Arayüz ve içerik iki dilde.
+- **Yedek:** Kayıtlar yalnız telefonda tutulur. Dışa aktarınca panoya kopyalanır; içe aktarma hiçbir şeyi silmez.
 
 ## Kurulum
 
@@ -45,37 +65,31 @@ Gereken araçlar: Flutter 3.44 ve Java 21.
 
 ```sh
 cd app
+flutter test
 flutter build apk --release
 ```
 
 Yayın imzası için `app/android/key.properties` dosyası oluştur. Bu dosya depoya girmez; yoksa APK hata ayıklama anahtarıyla imzalanır.
 
-```properties
-storeFile=/yol/release.keystore
-storePassword=…
-keyAlias=…
-keyPassword=…
-```
-
 Kod yapısı (`app/lib/`):
 
 | Dosya | İçerik |
 |---|---|
+| `motor.dart` | Karar ve program motoru: bölge sağlığı, hareket uygunluğu, haftalık hacim, gün dağıtımı, bloklar |
+| `kurulum.dart` | Kurulum akışı |
+| `plan_program.dart` | Kurulan planı ekranların program yapısına çevirir |
 | `data.dart` | Katalog, program, kayıtlar |
-| `wheel.dart` | Metal tekerlekler |
-| `figure.dart` | Çizim animasyonları |
-| `body_map.dart` | Vücut haritası |
-| `media.dart` | Animasyon ve mola sayacı |
+| `wheel.dart`, `figure.dart`, `body_map.dart`, `media.dart` | Tekerlekler, çizim animasyonları, vücut haritası, medya |
 | `today.dart`, `exercise_page.dart`, `program_page.dart`, `progress_page.dart` | Ekranlar |
 
-Hareket içeriği `app/assets/data/katalog.json` dosyasında: 121 hareket, kas listeleri ve alternatifler. Program `program.json` dosyasında.
+Veri (`app/assets/data/`):
 
-## Önemli not
-
-Bu uygulama tıbbi tavsiye değildir. Program sağlıklı yetişkinler için yazıldı.
-
-- Dizinde ya da belinde bir sorun varsa, ağır yüklemeye ve sıçrama çalışmalarına başlamadan önce bir spor hekimine danış.
-- Yeni hareketleri ilk haftalarda hafif ağırlıkla yap.
+| Dosya | İçerik |
+|---|---|
+| `motor.json` | Hareketler, rahatsızlıklar, spor/amaçlar, bölgeler, kurallar |
+| `katalog.json`, `katalog_ek.json` | Hareket içerikleri |
+| `figur.json` | Animasyonlar |
+| `en.json` | İngilizce içerik |
 
 ## Lisans
 
@@ -87,10 +101,13 @@ Kod ve içerik [MIT](LICENSE) lisanslı. Üçüncü taraf bileşenler ve lisansl
 
 ---
 
-**English:** Saha is an Android app (Flutter) for a 12-week, three-days-a-week strength and jumping programme designed for basketball players. It includes:
+**English:** Saha is an Android app (Flutter) that builds a research-based training program from your pain and injuries, goals, sex, training age, location and available days.
 
-- per-exercise pages with anatomical animations, a muscle map and easier/harder alternatives;
-- brushed-metal wheel pickers for logging sets;
-- rest timers and progress charts.
+- It screens with PAR-Q+ and red flags.
+- It shows needed and to-avoid muscle groups on a body map.
+- It spreads sessions over your days with recovery time between them.
+- It runs the program in 4-week blocks with RIR targets and deloads.
 
-The interface is in Turkish. Records stay on the device. MIT licensed.
+Every one of its 267 exercises has its own stick-figure animation, plus a live anatomical animation where available. The app is in Turkish and English. Data stays on the device. MIT licensed.
+
+*The suggestions are based on published research and guidelines; they are not advice from a doctor, physiotherapist or dietitian.*
