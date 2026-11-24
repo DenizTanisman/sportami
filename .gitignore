@@ -1,0 +1,15 @@
+.DS_Store
+# Flutter / Dart
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/build/
+app/.idea/
+*.iml
+# Android
+app/android/.gradle/
+app/android/local.properties
+app/android/key.properties
+app/android/app/release/
+*.keystore
+*.jks
