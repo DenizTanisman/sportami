@@ -158,7 +158,7 @@ double _r2(double x) => (x * 100).roundToDouble() / 100;
       final d = (r['dereceler'] as List).cast<Map>().where((x) => x['derece'] == g.derece).firstOrNull;
       if (d != null) {
         final ig = d['iyilesme_gun'] as List;
-        final t = ((ig[0] as num) + (ig[1] as num)) / 2;
+        final t = (ig[1] as num).toDouble(); // iyileşme aralığının üst sınırı
         final gecen = g.tarih != null ? gun.difference(DateTime(g.tarih!.year, g.tarih!.month, g.tarih!.day)).inDays : 0;
         final bc = (d['baslangic_ceza'] as num).toDouble();
         ceza0 = t != 0 ? bc * math.max(0.0, 1 - gecen / t) : bc;
@@ -167,7 +167,8 @@ double _r2(double x) => (x * 100).roundToDouble() / 100;
     final agri = (g.agri ?? 0).toDouble();
     for (final e in etkiler) {
       final k = (e['katsayi'] as num).toDouble();
-      dusus[e['bolge']] = dusus[e['bolge']]! + math.max(agri * _agriPuan * k, ceza0 * k);
+      // aynı bölgede birden çok rahatsızlık: en büyük düşüş geçerli
+      dusus[e['bolge']] = math.max(dusus[e['bolge']]!, math.max(agri * _agriPuan * k, ceza0 * k));
     }
     aciklama.add('${r['ad']}: ağrı ${_fmt(agri)}/10${g.derece != null ? ', ${g.derece} derece, ceza ${ceza0.toStringAsFixed(1)}' : ''}');
   }
@@ -196,12 +197,29 @@ class Karar {
   final String? yerine;
 }
 
-Karar hareketKarari(String hid, Map<String, double> saglik, int seviye, [int derinlik = 0]) {
+/// Seçilen derecelerin hareket türü kısıtları (ör. beyin sarsıntısı evreleri):
+/// (verilmeyen kategoriler, yine de verilebilen hareketler).
+typedef Kisit = (Set<String>, Set<String>);
+
+Kisit kisitlar(List<Rahatsizlik> rahatsizliklar) {
+  final kat = <String>{}, izin = <String>{};
+  for (final g in rahatsizliklar) {
+    final d = ((Bilgi.b.rahatsizlik[g.id]?['dereceler'] as List?) ?? const []).cast<Map>().where((x) => x['derece'] == g.derece).firstOrNull;
+    if (d != null) {
+      kat.addAll(_sl(d['kisit_kategoriler']));
+      izin.addAll(_sl(d['izinli_hareketler']));
+    }
+  }
+  return (kat, izin);
+}
+
+Karar hareketKarari(String hid, Map<String, double> saglik, int seviye, [int derinlik = 0, Kisit? kisit]) {
   final b = Bilgi.b;
   final h = b.hareket[hid]!;
   final esik = (h['saglik_esigi'] as Map?) ?? const {};
   final vars = (esik['varsayilan'] as num?) ?? 6;
   final neden = <String>[];
+  if (kisit != null && kisit.$1.contains(h['kategori']) && !kisit.$2.contains(hid)) neden.add('rahatsızlığın bu evresinde bu tür hareket verilmez');
   if ((h['seviye'] as num) > seviye) neden.add('seviye ${h['seviye']} gerekiyor (sende $seviye)');
   var enDusuk = 10.0;
   for (final bl in _gerekenBolgeler(h)) {
@@ -222,7 +240,7 @@ Karar hareketKarari(String hid, Map<String, double> saglik, int seviye, [int der
   }
   if (derinlik < 4) {
     for (final k in _sl(h['kolay'])) {
-      final a = hareketKarari(k, saglik, seviye, derinlik + 1);
+      final a = hareketKarari(k, saglik, seviye, derinlik + 1, kisit);
       if (a.karar == 'uygun' || a.karar == 'hafif') return Karar(hid, 'degistir', neden, a.yerine ?? k);
       if (a.yerine != null) return Karar(hid, 'degistir', neden, a.yerine);
     }
@@ -380,7 +398,7 @@ int _listeKarsilastir(List<num> a, List<num> b) {
 }
 
 /// Kişiye uygun hareketler: {id: "uygun"|"hafif"} ve değişenler {asıl: (yerine, neden)}.
-(Map<String, String>, Map<String, (String, List<String>)>) havuz(Map<String, double> saglik, int seviye, List<String> ortamlar, [List<String>? ekipman]) {
+(Map<String, String>, Map<String, (String, List<String>)>) havuz(Map<String, double> saglik, int seviye, List<String> ortamlar, [List<String>? ekipman, Kisit? kisit]) {
   final b = Bilgi.b;
   final ek = (ekipman != null && ekipman.isNotEmpty) ? {...ekipman, 'vucut_agirligi', 'sandalye_duvar'} : null;
   bool varMi(Map h) {
@@ -393,7 +411,7 @@ int _listeKarsilastir(List<num> a, List<num> b) {
   final out = <String, String>{}, neden = <String, (String, List<String>)>{};
   for (final e in b.hareket.entries) {
     if (!varMi(e.value)) continue;
-    final k = hareketKarari(e.key, saglik, seviye);
+    final k = hareketKarari(e.key, saglik, seviye, 0, kisit);
     final hedef = (k.karar == 'uygun' || k.karar == 'hafif') ? e.key : k.yerine;
     if (hedef != null && varMi(b.hareket[hedef]!)) {
       final durum = (k.karar == 'uygun' && hedef == e.key) ? 'uygun' : (k.karar == 'hafif' ? 'hafif' : 'uygun');
@@ -736,7 +754,7 @@ Plan programUret(Girdi g, {DateTime? bugun}) {
   }
   final toparlanma = {for (final e in b.bolge.entries) e.key: ((e.value['toparlanma_saat'] as List)[1] as num).toInt()};
   final (yapi, fazla) = gunYapisi([for (final x in g.gunler) if (!spor.containsKey(x)) x], seviye);
-  final (uygun, degisen) = havuz(saglik, seviye, g.ortamlar, g.ekipman);
+  final (uygun, degisen) = havuz(saglik, seviye, g.ortamlar, g.ekipman, kisitlar(g.rahatsizliklar));
   final anahtar = [for (final a in g.amaclar) ..._sl(b.spor[a]!['anahtar_hareketler'])];
 
   var sonTur1 = <String, int>{};

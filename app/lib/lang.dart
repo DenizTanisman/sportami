@@ -429,4 +429,7 @@ const _en = <String, String>{
   'hafifletilmiş': 'reduced load',
   'Bugün spor günü': 'Sport day today',
   'Antrenman günlerin {0}. Spor günü kas için de yük sayılır; bugün salonda ek iş yok.': 'Your training days are {0}. A sport day also counts as load for your muscles; no extra gym work today.',
+  'Şiddetli ağrı. Bu ağrıyla egzersize başlamadan önce bir doktor ya da fizyoterapist görmelisin; onay almadan program çıkarılmaz.': 'Severe pain. See a doctor or physiotherapist before exercising with this pain; no program is built without their clearance.',
+  'Bir doktor ya da fizyoterapist bu ağrıyla egzersiz yapmamı onayladı.': 'A doctor or physiotherapist cleared me to exercise with this pain.',
+  'Orta düzeyde ağrı. İlgili hareketler hafifletilir; antrenman sırasında ağrı 5/10\'u geçmemeli ve ertesi sabah artmamalı.': "Moderate pain. Related exercises are scaled down; during training pain shouldn't exceed 5/10 or be worse the next morning.",
 };

@@ -11,6 +11,12 @@
   <img src="docs/bugun.jpg" width="24%" alt="Today screen: the plan for the day">
 </p>
 
+## Promo video
+
+One minute: setup for an intermediate male who plays basketball and baseball, with mild low back pain and 4 gym days a week (Turkish interface).
+
+[![Promo video: the setup flow from consent to the finished program](media/tanitim_kapak.jpg)](media/saha_tanitim.mp4)
+
 ## How it works
 
 On first launch there is a short setup flow:
@@ -18,11 +24,12 @@ On first launch there is a short setup flow:
 1. **Warning and consent.** Your data stays only on your phone; there is no account and no server.
 2. **Profile:** sex, age and training history.
 3. **Health screening:** the PAR-Q+ (2023) questions. If any answer is "yes", a doctor's clearance is asked for first.
-4. **Conditions:** pick from 41 common pains and injuries.
-   - For pain, you enter a score from 0 to 10.
-   - For sprains and tears, you enter the grade and when it happened.
+4. **Conditions:** pick from 43 common pains and injuries, including concussion and finger injuries.
+   - For pain, you enter a score from 0 to 10. Pain of 3 or less keeps the full program; 4 and above scales the related exercises down. At 8 or above (severe), no program is built until a doctor or physiotherapist has cleared you.
+   - For sprains and tears, you enter the grade and when it happened. The penalty fades out over the upper end of the healing time.
+   - For concussion, you enter the graded return-to-sport stage (Amsterdam 2022 consensus); each stage leaves out the exercise types it doesn't allow.
    - If a red flag is checked, no program is built and you are referred to a doctor.
-5. **Goals:** you can pick more than one; for example basketball and muscle gain, or weight loss and general health.
+5. **Goals:** 18 sports and goals; you can pick more than one, for example basketball and baseball, or weight loss and general health.
 6. **Muscle groups:** The muscles your goals need are shown on a body map. Areas you shouldn't train for now because of a condition are marked separately. You can add muscle groups if you like; injured areas can't be selected.
 7. **Weekly need:** Weekly sets per muscle and the number of days that follows from them.
 8. **Place and days:** gym, home or outdoors; at home, the equipment you have. You choose your strength days and your sport practice/match days.

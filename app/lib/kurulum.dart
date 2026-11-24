@@ -176,10 +176,14 @@ class _R {
   int gunOnce = 7;
   String? bolge;
   final Set<int> bayrak = {};
+
+  /// Şiddetli ağrı (≥8/10, Boonstra 2016): uzman onayı olmadan program çıkmaz.
+  bool uzmanOnay = false;
+  bool get siddetli => agri >= 8;
   Map get veri => Bilgi.b.rahatsizlik[id]!;
   bool get agriIle => veri['agri_ile_puanlanir'] == true;
   bool get secilenKas => veri['etki_modeli'] == 'secilen_kas';
-  bool get tamam => (agriIle || derece != null) && (!secilenKas || bolge != null);
+  bool get tamam => (agriIle || derece != null) && (!secilenKas || bolge != null) && (!siddetli || uzmanOnay);
 
   Rahatsizlik girdi(DateTime bugun) => Rahatsizlik(id,
       agri: agri, derece: derece, tarih: derece == null ? null : bugun.subtract(Duration(days: gunOnce)), bolge: secilenKas ? bolge : null);
@@ -683,6 +687,12 @@ class _KurulumAkisiState extends State<KurulumAkisi> {
           child: Slider(value: r.agri.toDouble(), min: 0, max: 10, divisions: 10, onChanged: (v) => setState(() => r.agri = v.round())),
         ),
         Text(tr('Dinlenirken değil, günlük hareketlerde hissettiğin ağrı. 0 = yok, 10 = dayanılmaz.'), style: T.caption),
+        if (r.siddetli) ...[
+          _not(C.red, tr('Şiddetli ağrı. Bu ağrıyla egzersize başlamadan önce bir doktor ya da fizyoterapist görmelisin; onay almadan program çıkarılmaz.')),
+          const SizedBox(height: 10),
+          _onayKutusu(r.uzmanOnay, tr('Bir doktor ya da fizyoterapist bu ağrıyla egzersiz yapmamı onayladı.'), (v) => setState(() => r.uzmanOnay = v)),
+        ] else if (r.agri >= 6)
+          _not(C.yellow, tr('Orta düzeyde ağrı. İlgili hareketler hafifletilir; antrenman sırasında ağrı 5/10\'u geçmemeli ve ertesi sabah artmamalı.')),
         const SizedBox(height: 14),
         Text(r.agriIle ? tr('Derece (biliyorsan)') : tr('Derece'), style: T.caption),
         const SizedBox(height: 8),
