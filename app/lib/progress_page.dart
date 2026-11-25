@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'ada.dart';
 import 'data.dart';
 import 'motor.dart';
 import 'exercise_page.dart';
@@ -60,6 +61,7 @@ class ProgressPage extends StatelessWidget {
                 _AllExercises(store: store),
                 const SectionLabel('Dil / Language'),
                 const _Language(),
+                if (Ada.destekli && Ada.o != null) ...[SectionLabel(tr('Antrenman adası')), const _AdaAyar()],
                 SectionLabel(tr('Yedek')),
                 _Backup(store: store),
                 SectionLabel(tr('Kaynaklar')),
@@ -288,6 +290,47 @@ class _Language extends StatelessWidget {
         const SizedBox(height: 10),
         Text(tr('Uygulamanın dili. İngilizcede hareket içeriği de İngilizce görünür.'), style: T.caption),
       ]),
+    );
+  }
+}
+
+/// Turning the island on, and the "display over other apps" permission it needs.
+class _AdaAyar extends StatelessWidget {
+  const _AdaAyar();
+
+  @override
+  Widget build(BuildContext context) {
+    final ada = Ada.o!;
+    return ListenableBuilder(
+      listenable: ada,
+      builder: (context, _) => Panel(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Segmented<bool>(
+            items: [(false, tr('Kapalı')), (true, tr('Açık'))],
+            value: ada.acik,
+            onChanged: (v) {
+              if (v != ada.acik) ada.ac(v);
+            },
+          ),
+          const SizedBox(height: 10),
+          Text(
+              tr('Uygulamadan çıkınca ekranın üstünde küçük bir ada kalır: mola sayacı, sıradaki hareketin animasyonu ve set × tekrar ya da süre. '
+                  'Seti oradan kaydedip molada başka uygulamaları kullanabilirsin.'),
+              style: T.caption),
+          if (ada.acik && !ada.izin) ...[
+            const SizedBox(height: 12),
+            QuietButton(label: tr('İzin ver: diğer uygulamaların üzerinde göster'), icon: CupertinoIcons.lock_open_fill, color: C.accent, onTap: ada.izinIste),
+          ],
+          if (ada.hazir) ...[
+            const SizedBox(height: 10),
+            Row(children: [
+              const Icon(CupertinoIcons.checkmark_seal_fill, size: 15, color: C.green),
+              const SizedBox(width: 6),
+              Expanded(child: Text(tr('İzin verildi. Antrenmanda uygulamadan çıkınca ada açılır.'), style: t(12.5, w: 560, color: C.text2))),
+            ]),
+          ],
+        ]),
+      ),
     );
   }
 }

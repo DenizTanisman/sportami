@@ -609,6 +609,16 @@ class Store extends ChangeNotifier {
 
   int get recordCount => (_data['kayitlar'] as Map).values.fold<int>(0, (a, l) => a + (l as List).length) + measurements.length;
 
+  // ---- island over other apps ----------------------------------------------
+
+  bool get adaAcik => _data['ada'] == true;
+  bool get adaSecildi => _data.containsKey('ada');
+
+  void setAda(bool on) {
+    _data['ada'] = on;
+    _changed();
+  }
+
   // ---- rest ---------------------------------------------------------------
 
   int restFor(Exercise e) => n((_data['mola'] as Map)[e.id] ?? e.rest).toInt();

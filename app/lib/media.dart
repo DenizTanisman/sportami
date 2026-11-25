@@ -227,7 +227,11 @@ class RestTimer extends ChangeNotifier {
   Timer? _t;
   bool justFinished = false;
 
+  /// The island over other apps gives the alert itself while it is shown.
+  bool sessiz = false;
+
   bool get active => _end != null;
+  DateTime? get end => _end;
   int get left => _end == null ? 0 : (_end!.difference(DateTime.now()).inMilliseconds / 1000).ceil().clamp(0, 3600);
 
   void start(int seconds, String what) {
@@ -262,7 +266,7 @@ class RestTimer extends ChangeNotifier {
     _end = null;
     justFinished = alert;
     notifyListeners();
-    if (alert) {
+    if (alert && !sessiz) {
       for (var i = 0; i < 3; i++) {
         HapticFeedback.heavyImpact();
         await Future.delayed(const Duration(milliseconds: 220));

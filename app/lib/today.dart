@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'ada.dart';
 import 'data.dart';
 import 'exercise_page.dart';
 import 'kurulum.dart';
@@ -108,6 +109,8 @@ class TodayPage extends StatelessWidget {
           ),
         ),
       ),
+      if (Ada.destekli && Ada.o != null)
+        const SliverPadding(padding: EdgeInsets.fromLTRB(20, 12, 20, 0), sliver: SliverToBoxAdapter(child: _AdaSatiri())),
       _section(tr('Isınma'), '$warmDone/${warm.slots.length}'),
       _compactList(context, store, warm),
       _section(tr('Ana bölüm'), trf('{0} hareket', [slots.length])),
@@ -352,6 +355,45 @@ class _PlanToday extends StatelessWidget {
             ]),
           ),
       ]),
+    );
+  }
+}
+
+/// "Adaya geç" once the island is on; a one-time offer to turn it on otherwise.
+class _AdaSatiri extends StatelessWidget {
+  const _AdaSatiri();
+
+  @override
+  Widget build(BuildContext context) {
+    final ada = Ada.o!;
+    return ListenableBuilder(
+      listenable: ada,
+      builder: (context, _) {
+        if (ada.hazir) {
+          return QuietButton(
+            label: tr('Adaya geç · molada başka uygulama kullan'),
+            icon: CupertinoIcons.rectangle_dock,
+            color: C.accent,
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              ada.adayaGec();
+            },
+          );
+        }
+        if (ada.store.adaSecildi && !ada.acik) return const SizedBox.shrink();
+        return Panel(
+          padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+          child: Row(children: [
+            const Icon(CupertinoIcons.rectangle_dock, color: C.accent, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(ada.acik ? tr('Ada için izin gerekli: diğer uygulamaların üzerinde göster.') : tr('Antrenman adası: mola sayacı ve setler diğer uygulamaların üzerinde.'), style: t(13, w: 520, color: C.text2))),
+            TextButton(
+              onPressed: () => ada.acik ? ada.izinIste() : ada.ac(true),
+              child: Text(ada.acik ? tr('İzin ver') : tr('Aç'), style: t(13.5, w: 650, color: C.accent)),
+            ),
+          ]),
+        );
+      },
     );
   }
 }

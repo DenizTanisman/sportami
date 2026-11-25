@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -406,4 +408,22 @@ class _FigureViewState extends State<FigureView> with SingleTickerProviderStateM
     final (pose, ball) = widget.playing ? _a.at(_clock) : _a.still();
     return CustomPaint(painter: _FigurePainter(_a, pose, ball, fit: widget.fit), size: Size.infinite);
   }
+}
+
+/// The animation as PNG frames, for the island drawn outside Flutter (Android overlay).
+/// Returns (milliseconds per frame, frames). A single-pose figure gives one frame.
+Future<(int, List<Uint8List>)> figureFramesPng(Map data, {int size = 128}) async {
+  final a = FigureAnim(data);
+  final count = a.total <= 0 || a.frames.length < 2 ? 1 : (a.total / 70).round().clamp(12, 36);
+  final out = <Uint8List>[];
+  for (var i = 0; i < count; i++) {
+    final (pose, ball) = count == 1 ? a.still() : a.at(a.total * i / count);
+    final rec = ui.PictureRecorder();
+    _FigurePainter(a, pose, ball).paint(Canvas(rec), Size(size.toDouble(), size.toDouble()));
+    final img = await rec.endRecording().toImage(size, size);
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    img.dispose();
+    if (bytes != null) out.add(bytes.buffer.asUint8List());
+  }
+  return (count == 1 ? 1000 : (a.total / count).round(), out);
 }

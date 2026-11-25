@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'ada.dart';
 import 'data.dart';
 import 'kurulum.dart';
 import 'lang.dart';
@@ -29,7 +30,9 @@ Future<void> main() async {
 }
 
 class SahaApp extends StatelessWidget {
-  SahaApp({super.key, required this.store});
+  SahaApp({super.key, required this.store}) {
+    Ada(store, rest);
+  }
   final Store store;
   final RestTimer rest = RestTimer();
 

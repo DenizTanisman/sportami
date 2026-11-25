@@ -17,6 +17,32 @@ One minute: setup for an intermediate male who plays basketball and baseball, wi
 
 [![Promo video: the setup flow from consent to the finished program](media/promo_cover.jpg)](media/sportami_promo.mp4)
 
+## Workout island
+
+While you train, a small island can stay at the top of the screen when you leave the app. It works like a phone's dynamic island, so you can use other apps between sets.
+
+<p>
+  <img src="docs/island-compact.jpg" width="40%" alt="Collapsed island over another app: exercise, set and dose, sets done">
+  <img src="docs/island.jpg" width="40%" alt="Open island: animation, sets × reps, the values to log and the buttons">
+</p>
+
+- **Collapsed**, it shows:
+  - the animation of the current exercise;
+  - the set number, for example SET 1 / 3;
+  - the dose, sets × reps (3 × 10) or the time;
+  - during a rest, the countdown with a ring.
+- **Tap it** to open it. From the open island you can:
+  - log the set without opening the app, and change kg or reps first;
+  - start a timed set; the countdown runs and the set is logged when time is up;
+  - shorten or lengthen the rest by 15 seconds, or end it;
+  - move to the previous or next exercise.
+- When the rest or a timed set is over, the phone vibrates and plays the notification sound.
+- Drag the island anywhere. It hides as soon as you come back to the app.
+
+It needs Android's **"Display over other apps"** permission. Turn it on in **Progress › Workout island**, or tap **Turn on** on the Today screen. The app then opens the system setting for you.
+
+While the island is up, the app keeps a quiet foreground notification so Android doesn't close it. The island shows only during a workout: after you log a set or tap **Go to the island**, and for two hours after your last set. **✕** closes it until your next set.
+
 ## How it works
 
 On first launch there is a short setup flow. The app opens in your phone's language (Turkish on a Turkish phone, English otherwise); the TR | EN switch at the top of every setup step, and later in the Progress tab, changes it at once.
@@ -55,6 +81,8 @@ All the rules are based on published guidelines and research: WHO 2020, ACSM, NS
   - **Muscles worked:** a body map.
   - **Alternatives:** a general, an easier and a harder alternative.
 - **Metal wheel logging:** Weight and reps are picked with brushed-metal wheels. The rest time of each set is counted automatically.
+- **Next exercise:** When all sets of an exercise are done, its page offers the next exercise of the day in one tap; **Extra set** is still there. In a superset it takes you straight to the other half.
+- **Workout island** over other apps (see above).
 - **Progress:** Records and charts for the main lifts; body measurements.
 - **English and Turkish:** The interface and all content (exercises, conditions, sports, program notes) are in both languages. Switch any time; nothing is lost.
 - **Backup:** Records are kept only on the phone. Export copies them to the clipboard; import never deletes anything.
@@ -88,6 +116,7 @@ Code layout (`app/lib/`). The app started as a Turkish project, so file names an
 | `data.dart` | Catalog, program, records |
 | `wheel.dart`, `figure.dart`, `body_map.dart`, `media.dart` | Wheels, drawn animations, body map, media |
 | `today.dart`, `exercise_page.dart`, `program_page.dart`, `progress_page.dart` | Screens |
+| `ada.dart` (`ada` = island) | Workout island: what it shows and what its buttons do. The Android side is in `android/app/src/main/kotlin/.../Ada.kt` and `AdaGorunum.kt` (the overlay view) |
 
 Data (`app/assets/data/`):
 

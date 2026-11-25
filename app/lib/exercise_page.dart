@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'ada.dart';
 import 'body_map.dart';
 import 'data.dart';
 import 'lang.dart';
@@ -425,13 +426,18 @@ class _ExercisePageState extends State<ExercisePage> {
       final key = widget.slot == null || widget.day == null ? null : store.slotKey(widget.day!, widget.slot!);
       if (key == null) return const SizedBox();
       final done = store.ticked(key);
+      final next = done ? siradakiHareket(store, widget.day, widget.slot) : null;
       return _DockShell(
         child: done
-            ? QuietButton(label: tr('Tamamlandı · geri al'), icon: CupertinoIcons.checkmark_alt, color: C.green, onTap: () => store.tick(key))
+            ? Column(mainAxisSize: MainAxisSize.min, children: [
+                if (next != null) ...[NextExerciseButton(next: next), const SizedBox(height: 10)],
+                QuietButton(label: tr('Tamamlandı · geri al'), icon: CupertinoIcons.checkmark_alt, color: C.green, onTap: () => store.tick(key)),
+              ])
             : PrimaryButton(label: tr('Tamamlandı'), icon: CupertinoIcons.checkmark_alt, onTap: () {
                 HapticFeedback.mediumImpact();
                 store.tick(key);
-                Navigator.maybePop(context);
+                // Stay when there is a next step to go to; otherwise back to the list.
+                if (siradakiHareket(store, widget.day, widget.slot) == null) Navigator.maybePop(context);
               }),
       );
     }
@@ -500,24 +506,15 @@ class _SetLoggerState extends State<_SetLogger> {
   final Map<String, num?> _v = {};
   bool _ready = false;
 
+  /// All sets are done but one more is wanted: show the drums again.
+  bool _extra = false;
+
   Exercise get e => widget.exercise;
 
   void _prefill(Store store) {
-    final type = e.type!;
-    final last = store.todaySets(e.id).lastOrNull ?? store.last(e.id);
-    final (_, reps) = parseDose(widget.slot?.doseFor(store.phase));
-    for (final f in type.fields) {
-      num? v = last?[f.key] == null ? null : n(last![f.key]);
-      v ??= switch (f.key) {
-        'kg' => f.optional ? null : 20,
-        'r' => f.optional ? null : (reps ?? 8),
-        'sn' => reps ?? 30,
-        'm' => reps ?? 20,
-        'cm' => e.cm?.first ?? 100,
-        _ => f.min,
-      };
-      _v[f.key] = v;
-    }
+    _v
+      ..clear()
+      ..addAll(setPrefill(store, e, widget.slot));
     _ready = true;
   }
 
@@ -532,14 +529,15 @@ class _SetLoggerState extends State<_SetLogger> {
     return ListenableBuilder(
       listenable: rest,
       builder: (context, _) {
-        final resting = rest.active && rest.label == e.name;
+        // A rest is between sets whichever exercise started it: on the next exercise's page too.
+        final resting = rest.active;
         return _DockShell(
           child: AnimatedSize(
             duration: const Duration(milliseconds: 260),
             curve: Curves.easeOutCubic,
             child: widget.compact
                 ? _compactView(store, rest, type, resting, done, target)
-                : (resting ? _restView(rest, done, target) : _logView(store, rest, type, done, target)),
+                : (resting ? _restView(store, rest, done, target) : _logView(store, rest, type, done, target)),
           ),
         );
       },
@@ -547,6 +545,21 @@ class _SetLoggerState extends State<_SetLogger> {
   }
 
   Widget _logView(Store store, RestTimer rest, LogType type, int done, int? target) {
+    final next = siradakiHareket(store, widget.day, widget.slot);
+    final finished = target != null && done >= target;
+    if (finished && next != null && !_extra) {
+      return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          const Icon(CupertinoIcons.checkmark_seal_fill, color: C.green, size: 16),
+          const SizedBox(width: 6),
+          Text(trf('SETLER TAMAM · {0} / {1}', [done, target]), style: t(12.5, w: 700, color: C.green, ls: 1)),
+        ]),
+        const SizedBox(height: 12),
+        NextExerciseButton(next: next),
+        const SizedBox(height: 10),
+        QuietButton(label: tr('Ekstra set'), icon: CupertinoIcons.plus, onTap: () => setState(() => _extra = true)),
+      ]);
+    }
     final setNo = done + 1;
     final label = target == null ? trf('SET {0}', [setNo]) : (setNo > target ? tr('EKSTRA SET') : trf('SET {0} / {1}', [setNo, target]));
     return Column(mainAxisSize: MainAxisSize.min, children: [
@@ -568,6 +581,8 @@ class _SetLoggerState extends State<_SetLogger> {
       ]),
       const SizedBox(height: 14),
       PrimaryButton(label: tr('Seti kaydet'), icon: CupertinoIcons.checkmark_alt, onTap: () => _save(store, rest, type)),
+      // Superset: straight on to the other half after a set.
+      if (next != null && !finished) ...[const SizedBox(height: 10), NextExerciseButton(next: next)],
     ]);
   }
 
@@ -631,7 +646,8 @@ class _SetLoggerState extends State<_SetLogger> {
       ));
   }
 
-  Widget _restView(RestTimer rest, int done, int? target) {
+  Widget _restView(Store store, RestTimer rest, int done, int? target) {
+    final nextEx = target != null && done >= target ? siradakiHareket(store, widget.day, widget.slot) : null;
     final frac = rest.total == 0 ? 0.0 : rest.left / rest.total;
     final next = target == null ? tr('Sonraki set') : (done >= target ? tr('Setler tamam · sıradaki harekete geç') : trf('Sonraki: set {0} / {1}', [done + 1, target]));
     return Column(mainAxisSize: MainAxisSize.min, children: [
@@ -655,6 +671,49 @@ class _SetLoggerState extends State<_SetLogger> {
         const SizedBox(width: 8),
         Expanded(flex: 2, child: QuietButton(label: tr('Molayı bitir'), icon: CupertinoIcons.forward_end_fill, color: C.accent, onTap: rest.skip)),
       ]),
+      if (nextEx != null) ...[const SizedBox(height: 10), NextExerciseButton(next: nextEx)],
     ]);
+  }
+}
+
+/// "SIRADAKİ" card at the bottom of an exercise: opens the next step of today's plan
+/// in place of this page.
+class NextExerciseButton extends StatelessWidget {
+  const NextExerciseButton({super.key, required this.next});
+  final (Day, Slot, Exercise) next;
+
+  @override
+  Widget build(BuildContext context) {
+    final (day, slot, e) = next;
+    final store = App.of(context).store;
+    final dose = slot.doseFor(store.phase) ?? '';
+    return Material(
+      color: C.accent.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          Navigator.pushReplacement(context, exerciseRoute(e, day: day, slot: slot));
+        },
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: C.accent.withValues(alpha: 0.45))),
+          child: Row(children: [
+            ExThumb(exercise: e, size: 44),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                Text(trUpper(tr('Sıradaki hareket')), style: t(11, w: 700, color: C.accent, ls: 0.8)),
+                const SizedBox(height: 2),
+                Text(e.name, style: t(15.5, w: 650), maxLines: 1, overflow: TextOverflow.ellipsis),
+                if (dose.isNotEmpty) Text(dose, style: T.caption, maxLines: 1, overflow: TextOverflow.ellipsis),
+              ]),
+            ),
+            const Icon(CupertinoIcons.chevron_right, color: C.accent, size: 20),
+          ]),
+        ),
+      ),
+    );
   }
 }

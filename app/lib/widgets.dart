@@ -248,3 +248,22 @@ class _RingPainter extends CustomPainter {
   final s = RegExp(r'^(\d+)\s*×').firstMatch(d);
   return (s == null ? null : int.parse(s[1]!), null);
 }
+
+/// Values a new set starts from: today's last set, else the last record, else the dose.
+Map<String, num?> setPrefill(Store store, Exercise e, Slot? slot) {
+  final type = e.type!;
+  final last = store.todaySets(e.id).lastOrNull ?? store.last(e.id);
+  final (_, reps) = parseDose(slot?.doseFor(store.phase));
+  return {
+    for (final f in type.fields)
+      f.key: (last?[f.key] == null ? null : n(last![f.key])) ??
+          switch (f.key) {
+            'kg' => f.optional ? null : 20,
+            'r' => f.optional ? null : (reps ?? 8),
+            'sn' => reps ?? 30,
+            'm' => reps ?? 20,
+            'cm' => e.cm?.first ?? 100,
+            _ => f.min,
+          },
+  };
+}
