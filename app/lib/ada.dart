@@ -10,7 +10,6 @@ import 'data.dart';
 import 'figure.dart';
 import 'lang.dart';
 import 'media.dart';
-import 'theme.dart';
 import 'widgets.dart';
 
 /// One step of the island's list, reduced to what choosing the next step needs.
@@ -143,10 +142,13 @@ class _Is {
   int get gecen => (toplam - son.difference(DateTime.now()).inSeconds).clamp(1, toplam);
 }
 
-/// The workout island: a small pill over other apps (Android "display over other apps").
-/// It shows the step to do now (animation, sets × reps or the time), the rest countdown,
-/// and logs sets without opening the app. Shown only while the app is in the background
-/// and a workout is going on; hidden as soon as the app comes back.
+/// What a workout shows outside the app, in Agent Presence's look:
+/// - an ongoing notification (a Live Update on Android 16) for the whole workout: the
+///   exercise and set, the rest counting down, the day's exercises as progress, a button;
+/// - the island over other apps (Android "display over other apps", when turned on), only
+///   while the app is in the background: a circle under the camera, a pill during a rest,
+///   a card with the buttons and the day's exercises.
+/// Both log sets without opening the app.
 class Ada extends ChangeNotifier with WidgetsBindingObserver {
   Ada(this.store, this.rest) {
     o = this;
@@ -158,6 +160,8 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
     Lang.current.addListener(_degisti);
     _imza = _imzaHesapla();
     izinYenile();
+    // The workout ends two hours after the last set even if nothing else happens.
+    Timer.periodic(const Duration(minutes: 1), (_) => _gonder());
   }
 
   static Ada? o;
@@ -186,6 +190,11 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
   final Set<String> _kareGitti = {};
   int _imza = 0;
   Timer? _onYukle;
+
+  /// A rest ran out (not skipped): the next set waits for the owner, shown in amber.
+  int _dikkatMs = 0;
+  bool _molaVardi = false;
+  bool _bildirimSoruldu = false;
 
   // ---- settings -------------------------------------------------------------
 
@@ -277,7 +286,14 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
 
   bool get _oturum => DateTime.now().millisecondsSinceEpoch - _sonKayitMs < const Duration(hours: 2).inMilliseconds;
 
-  bool get _gostermeli => hazir && _arkada && !_kapatildi && (rest.active || _is != null || (_oturum && store.chosenDay != null));
+  /// A workout is on: the notification shows (in the app too).
+  bool get _oturumVar => destekli && !_kapatildi && (rest.active || _is != null || (_oturum && store.chosenDay != null));
+
+  /// The island shows too: turned on, allowed, and the app is in the background.
+  bool get _adaVar => hazir && _arkada;
+
+  bool get _dikkat =>
+      _dikkatMs > 0 && !rest.active && _is == null && DateTime.now().millisecondsSinceEpoch - _dikkatMs < const Duration(minutes: 10).inMilliseconds;
 
   // ---- state sent to the overlay ----------------------------------------------------
 
@@ -286,20 +302,51 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
     final i = _simdiki(l);
     final k = i == null ? null : l[i];
     final now = DateTime.now().millisecondsSinceEpoch;
+    String gun = '';
+    try {
+      gun = store.program.day(store.chosenDay!).title;
+    } catch (_) {}
+    var ilerlemeTum = 0.0;
+    final liste = <Map<String, Object?>>[];
+    for (var j = 0; j < l.length; j++) {
+      final y = _yapilan(l[j]), h = _hedef(l[j]);
+      final oran = h == 0 ? 0.0 : (y / h).clamp(0.0, 1.0);
+      ilerlemeTum += oran;
+      liste.add({'ad': l[j].e.name, 'alt': adaDoz(_doz(l[j])), 'd': j == i ? 's' : (y >= h ? 'b' : 'q'), if (j == i) 'oran': oran});
+    }
+    final adimYazi = i == null ? '' : trf('Adım {0}/{1}', [i + 1, l.length]);
+    final dikkat = _dikkat && k != null;
     final d = <String, Object?>{
-      'L': {'eksi': '−15', 'arti': '+15', 'molaBitir': tr('Molayı bitir'), 'bildirim': tr('Antrenman adası açık'), 'bildirimAlt': tr('Dokun, uygulamaya dön')},
-      'sira': i == null ? '' : '${i + 1}/${l.length}',
+      'L': {
+        'bitti': tr('Bitti'), 'suruyor': tr('Sürüyor'), 'sirada': tr('Sırada'), 'mola': tr('Mola'), 'siraSende': tr('Sıra sende'),
+        'molaBitti': tr('Mola bitti'), 'kucult': tr('Küçült'), 'ac': tr('Uygulamayı aç'), 'kanal': tr('Antrenman'),
+      },
+      'gun': gun,
+      'adimYazi': adimYazi,
+      'nAlt': [adimYazi, gun].where((x) => x.isNotEmpty).join(' · '),
+      'toplam': l.length,
+      'ilerlemeTum': ilerlemeTum,
+      'liste': liste,
+      'ada': _adaVar,
+      'arkada': _arkada,
+      'dikkat': dikkat,
       'gezinme': l.length > 1,
       if (_not != null && now - _notT < 4000) 'not': _not,
       'notT': _notT,
     };
+    final sn = tr('sn');
     if (k == null) {
       if (rest.active) {
-        return {...d, 'mod': 'mola', 'ust': tr('MOLA'), 'baslik': rest.label, 'kisa': rest.label, 'kisaAlt': tr('MOLA'), 'doz': '', 'set': '', 'kayit': '',
-          'molaSon': rest.end?.millisecondsSinceEpoch ?? now, 'molaToplam': rest.total, 'birincil': tr('Molayı bitir'), 'sonraki': ''};
+        return {...d, 'mod': 'mola', 'baslik': rest.label, 'setNo': 1, 'doz': '', 'set': '', 'kayit': '', 'kapsul': '',
+          'molaSon': rest.end?.millisecondsSinceEpoch ?? now, 'molaToplam': rest.total, 'birincil': tr('Molayı bitir'), 'sonraki': '',
+          'dugmeler': [{'y': '−15', 'e': 'eksi'}, {'y': '+15', 'e': 'arti'}],
+          'nBaslik': trf('Mola · {0}', [rest.label]), 'nMetin': tr('Dinlen'),
+          'nEylemler': [{'y': '+15 $sn', 'e': 'arti'}, {'y': tr('Molayı bitir'), 'e': 'molaBitir'}]};
       }
-      return {...d, 'mod': 'bitti', 'ust': trUpper(tr('Antrenman')), 'baslik': tr('Bugünlük bitti'), 'kisa': tr('Bugünlük bitti'), 'kisaAlt': '✓',
-        'doz': '', 'set': '', 'kayit': tr('Kayıtlar uygulamada. İyi dinlen.'), 'birincil': tr('Adayı kapat'), 'ilerleme': 1.0};
+      return {...d, 'mod': 'bitti', 'baslik': tr('Bugünlük bitti'), 'setNo': 1, 'doz': '', 'set': '', 'kapsul': '',
+        'kayit': tr('Kayıtlar uygulamada. İyi dinlen.'), 'birincil': tr('Adayı kapat'), 'ilerleme': 1.0,
+        'nBaslik': tr('Bugünlük bitti'), 'nMetin': tr('Kayıtlar uygulamada. İyi dinlen.'),
+        'nEylemler': [{'y': tr('Kapat'), 'e': 'kapat'}]};
     }
     final e = k.e, hedef = _hedef(k), yapilan = _yapilan(k);
     final setNo = yapilan + 1;
@@ -308,26 +355,31 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
     final type = e.type;
     final degerler = e.logs ? _degerler(k) : null;
     final sure = e.logs ? (type!.kind == 'sn' ? degerler!['sn']?.toInt() : null) : adaSure(_doz(k));
-    final kayit = type == null || type.kind == 'sn' ? (k.slot.cue.isNotEmpty ? k.slot.cue : '') : trf('Kaydedilecek: {0}', [type.text(degerler!)]);
-    final ust = trUpper([tr(k.bolum), if (k.day.isMain) k.slot.shortNo].join(' · '));
+    final yuk = type == null || type.kind == 'sn' ? '' : type.text(degerler!);
+    final kayit = yuk.isEmpty ? (k.slot.cue.isNotEmpty ? k.slot.cue : '') : trf('Kaydedilecek: {0}', [yuk]);
     d.addAll({
       'id': e.id,
-      'ust': ust,
       'baslik': e.name,
-      'kisa': e.name,
       'doz': doz,
       'set': setYazi,
+      'setNo': setNo,
       'kayit': kayit,
       'ilerleme': hedef == 0 ? 0.0 : (yapilan / hedef).clamp(0.0, 1.0),
       'sag': '${yapilan.clamp(0, hedef)}/$hedef',
+      'kapsul': '',
     });
+    final setSatiri = [setYazi.toLowerCase().replaceFirstMapped(RegExp(r'^\w'), (m) => m[0]!.toUpperCase()), doz].where((x) => x.isNotEmpty).join(' · ');
     if (_is != null) {
-      return {...d, 'mod': 'is', 'kisaAlt': setYazi, 'isSon': _is!.son.millisecondsSinceEpoch, 'isToplam': _is!.toplam, 'birincil': tr('Bitir')};
+      return {...d, 'mod': 'is', 'isSon': _is!.son.millisecondsSinceEpoch, 'isToplam': _is!.toplam, 'birincil': tr('Bitir'),
+        'nBaslik': e.name, 'nMetin': setSatiri, 'nEylemler': [{'y': tr('Bitir'), 'e': 'birincil'}]};
     }
     if (rest.active) {
       final sonraki = yapilan >= hedef ? trf('Sıradaki: {0}', [e.name]) : trf('Sonraki: set {0} / {1}', [setNo, hedef]);
-      return {...d, 'mod': 'mola', 'kisaAlt': tr('MOLA'), 'molaSon': rest.end?.millisecondsSinceEpoch ?? now, 'molaToplam': rest.total, 'birincil': tr('Molayı bitir'), 'sonraki': sonraki,
-        'dugmeler': [{'y': '−15', 'e': 'eksi'}, {'y': '+15', 'e': 'arti'}]};
+      final siradaki = trf('Sırada: {0} · {1}', [e.name, setSatiri]);
+      return {...d, 'mod': 'mola', 'molaSon': rest.end?.millisecondsSinceEpoch ?? now, 'molaToplam': rest.total, 'birincil': tr('Molayı bitir'),
+        'sonraki': sonraki, 'kapsul': siradaki, 'dugmeler': [{'y': '−15', 'e': 'eksi'}, {'y': '+15', 'e': 'arti'}],
+        'nBaslik': trf('Mola · {0}', [rest.label.isEmpty ? e.name : rest.label]), 'nMetin': siradaki,
+        'nEylemler': [{'y': '+15 $sn', 'e': 'arti'}, {'y': tr('Molayı bitir'), 'e': 'molaBitir'}]};
     }
     final String birincil;
     final dugmeler = <Map<String, String>>[];
@@ -347,7 +399,12 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
     } else {
       birincil = tr('Tamam');
     }
-    return {...d, 'mod': 'set', 'kisaAlt': '$setYazi · $doz', 'birincil': birincil, 'dugmeler': dugmeler};
+    return {...d, 'mod': 'set', 'birincil': birincil, 'dugmeler': dugmeler,
+      'kapsul': dikkat ? trf('Sıradaki: {0}', [[setSatiri, if (yuk.isNotEmpty) yuk].join(' · ')]) : '',
+      'nBaslik': dikkat ? trf('Mola bitti · {0}', [e.name]) : e.name,
+      'nMetin': [setSatiri, if (yuk.isNotEmpty) yuk].join(' · '),
+      'nKisa': '${yapilan.clamp(0, hedef)}/$hedef',
+      'nEylemler': [{'y': birincil, 'e': 'birincil'}]};
   }
 
   // ---- sending ---------------------------------------------------------------------------
@@ -357,6 +414,14 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
     if (imza > _imza) {
       _elleMs = DateTime.now().millisecondsSinceEpoch;
       _kapatildi = false;
+      _dikkatMs = 0;
+    }
+    if (rest.active) {
+      _molaVardi = true;
+      _dikkatMs = 0;
+    } else if (_molaVardi) {
+      _molaVardi = false;
+      if (rest.justFinished) _dikkatMs = DateTime.now().millisecondsSinceEpoch;
     }
     _imza = imza;
     if (!_arkada && hazir) {
@@ -377,7 +442,7 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
     try {
       do {
         _yeniden = false;
-        if (!_gostermeli) {
+        if (!_oturumVar) {
           rest.sessiz = false;
           if (_gosteriliyor) {
             _gosteriliyor = false;
@@ -390,8 +455,13 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
         final s = jsonEncode(d);
         if (_gosteriliyor && s == _sonGiden) continue;
         final id = d['id'] as String?;
-        if (id != null) await _kareGonder(id);
-        rest.sessiz = true;
+        if (id != null && _adaVar) await _kareGonder(id);
+        // In the background the native side rings at the end of a rest; in the app the app does.
+        rest.sessiz = _arkada;
+        if (!_arkada && !_bildirimSoruldu) {
+          _bildirimSoruldu = true;
+          await _kanal.invokeMethod('bildirimIzni');
+        }
         _sonGiden = s;
         final ok = await _kanal.invokeMethod<bool>(_gosteriliyor ? 'guncelle' : 'goster', d);
         _gosteriliyor = ok ?? true;

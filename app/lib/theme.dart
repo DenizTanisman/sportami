@@ -82,6 +82,7 @@ ThemeData buildTheme() {
       backgroundColor: C.surface3,
       contentTextStyle: t(14, w: 500),
       behavior: SnackBarBehavior.floating,
+      dismissDirection: DismissDirection.horizontal,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
   );

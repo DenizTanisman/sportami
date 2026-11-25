@@ -17,31 +17,39 @@ One minute: setup for an intermediate male who plays basketball and baseball, wi
 
 [![Promo video: the setup flow from consent to the finished program](media/promo_cover.jpg)](media/sportami_promo.mp4)
 
-## Workout island
+## Workout island and notification
 
-While you train, a small island can stay at the top of the screen when you leave the app. It works like a phone's dynamic island, so you can use other apps between sets.
+While you train, Sportami stays with you outside the app, so you can use other apps between sets. The look follows [Agent Presence](https://github.com/DenizTanisman/agent-presence): a circle under the camera, a pill with a capsule, and a card with a task list.
 
 <p>
-  <img src="docs/island-compact.jpg" width="40%" alt="Collapsed island over another app: exercise, set and dose, sets done">
-  <img src="docs/island.jpg" width="40%" alt="Open island: animation, sets × reps, the values to log and the buttons">
+  <img src="docs/island-compact.jpg" width="32%" alt="During a rest: the pill with the countdown and a capsule saying what comes next">
+  <img src="docs/island.jpg" width="32%" alt="The open card: animation, set, dose, rest countdown, buttons and the day's exercises">
+  <img src="docs/island-notification.jpg" width="32%" alt="The workout notification: the rest counting down, the day's progress and buttons">
 </p>
 
-- **Collapsed**, it shows:
-  - the animation of the current exercise;
-  - the set number, for example SET 1 / 3;
-  - the dose, sets × reps (3 × 10) or the time;
-  - during a rest, the countdown with a ring.
-- **Tap it** to open it. From the open island you can:
-  - log the set without opening the app, and change kg or reps first;
-  - start a timed set; the countdown runs and the set is logged when time is up;
+**Notification.** During a workout, a notification in the notification shade shows:
+- the current exercise and set, with the weight and reps that will be logged;
+- during a rest, the countdown;
+- the day's exercises as a progress bar;
+- a button that logs the set, or during a rest, **+15 s** and **End rest**.
+
+On Android 16 it asks to be a Live Update: it stays pinned at the top of the shade, with a chip in the status bar. It needs no extra permission other than notifications.
+
+**Island** (optional, over other apps):
+- **Circle under the camera.** It shows the number of the set to do; the ring around it fills as sets are done.
+- **During a rest or a timed set**, the circle becomes a pill with the exercise's animation and the countdown. A capsule under it says what comes next.
+- **When the rest is over**, the island turns amber and glows, opens for a few seconds and tells you the next set. The phone vibrates and plays the notification sound.
+- **Tap it** to open the card. From the card you can:
+  - log the set, after changing kg or reps if needed;
+  - start a timed set;
   - shorten or lengthen the rest by 15 seconds, or end it;
   - move to the previous or next exercise.
-- When the rest or a timed set is over, the phone vibrates and plays the notification sound.
-- Drag the island anywhere. It hides as soon as you come back to the app.
 
-It needs Android's **"Display over other apps"** permission. Turn it on in **Progress › Workout island**, or tap **Turn on** on the Today screen. The app then opens the system setting for you.
+  The card also lists the day's exercises, each marked **Done**, **Running** or **Next**.
 
-While the island is up, the app keeps a quiet foreground notification so Android doesn't close it. The island shows only during a workout: after you log a set or tap **Go to the island**, and for two hours after your last set. **✕** closes it until your next set.
+The island hides as soon as you come back to the app. It needs Android's **"Display over other apps"** permission: turn it on in **Progress › Workout island**, or tap **Turn on** on the Today screen, and the app opens the system setting for you.
+
+Both show only during a workout: after you log a set or tap **Go to the island**, and for two hours after your last set. **✕** on the card closes both until your next set.
 
 ## How it works
 
@@ -81,9 +89,9 @@ All the rules are based on published guidelines and research: WHO 2020, ACSM, NS
   - **Muscles worked:** a body map.
   - **Alternatives:** a general, an easier and a harder alternative.
 - **Metal wheel logging:** Weight and reps are picked with brushed-metal wheels. The rest time of each set is counted automatically.
-- **Edit or delete a set:** Press and hold a saved set, then choose **Edit** (the same wheels) or **Delete**. Both can be undone.
+- **Edit or delete a set:** Press and hold a saved set, then choose **Edit** (the same wheels) or **Delete**. Both can be undone; swipe the undo bar sideways to dismiss it. Set numbers stay in order after a delete.
 - **Next exercise:** When all sets of an exercise are done, its page offers the next exercise of the day in one tap; **Extra set** is still there. In a superset it takes you straight to the other half.
-- **Workout island** over other apps (see above).
+- **Workout notification and island** over other apps (see above).
 - **Progress:** Records and charts for the main lifts; body measurements.
 - **English and Turkish:** The interface and all content (exercises, conditions, sports, program notes) are in both languages. Switch any time; nothing is lost.
 - **Backup:** Records are kept only on the phone. Export copies them to the clipboard; import never deletes anything.
@@ -117,7 +125,7 @@ Code layout (`app/lib/`). The app started as a Turkish project, so file names an
 | `data.dart` | Catalog, program, records |
 | `wheel.dart`, `figure.dart`, `body_map.dart`, `media.dart` | Wheels, drawn animations, body map, media |
 | `today.dart`, `exercise_page.dart`, `program_page.dart`, `progress_page.dart` | Screens |
-| `ada.dart` (`ada` = island) | Workout island: what it shows and what its buttons do. The Android side is in `android/app/src/main/kotlin/.../Ada.kt` and `AdaGorunum.kt` (the overlay view) |
+| `ada.dart` (`ada` = island) | Workout notification and island: what they show and what their buttons do. The Android side is in `android/app/src/main/kotlin/.../`: `Ada.kt` (bridge, service, notification), `AdaGorunum.kt` (the overlay view), `AdaDaire.kt`, `AdaKok.kt`, `AdaRenk.kt` (circle, glow and colors from Agent Presence) |
 
 Data (`app/assets/data/`):
 

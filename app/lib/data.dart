@@ -354,6 +354,15 @@ class Store extends ChangeNotifier {
     } else {
       data = {'surum': 1, 'kayitlar': {}, 'olcumler': [], 'degisim': {}, 'mola': {}, 'tamam': {}};
     }
+    // Older versions kept a set's number after a delete ("2, 2, 3"): repair once on load.
+    final recs = data['kayitlar'] as Map;
+    for (final k in recs.keys.toList()) {
+      final l = (recs[k] as List).toList();
+      for (final day in {for (final r in l) (r as Map)['d']}) {
+        _renumber(l, day);
+      }
+      recs[k] = l;
+    }
     final s = Store._(catalog, program, file, data);
     await s._save();
     return s;
@@ -589,9 +598,26 @@ class Store extends ChangeNotifier {
       bin.removeAt(0);
     }
     _data['cop'] = bin;
+    final day = l[i]['d'];
     l.removeAt(i);
+    _renumber(l, day);
     m[exerciseId] = l;
     _changed();
+  }
+
+  /// Set numbers of one day follow the order the sets were done, so deleting or restoring
+  /// one never leaves "2, 2, 3".
+  @visibleForTesting
+  static void renumberForTest(List l, Object? day) => _renumber(l, day);
+
+  static void _renumber(List l, Object? day) {
+    var k = 0;
+    for (var i = 0; i < l.length; i++) {
+      final r = l[i] as Map;
+      if (r['d'] != day || r['set'] == null) continue;
+      k++;
+      if (r['set'] != k) l[i] = {...Map<String, dynamic>.from(r), 'set': k};
+    }
   }
 
   /// Changes a saved set's values (null removes an optional one). Returns the record as it was,
@@ -637,6 +663,7 @@ class Store extends ChangeNotifier {
     final l = (m[c['k']] as List?)?.toList() ?? [];
     l.add(c['rec']);
     l.sort((a, b) => n(a['t']).compareTo(n(b['t'])));
+    _renumber(l, c['rec']['d']);
     m[c['k']] = l;
     _changed();
   }

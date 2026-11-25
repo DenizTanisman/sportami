@@ -1,6 +1,8 @@
 package dev.deniz.saha
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
 import android.net.Uri
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
@@ -12,6 +14,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         val kanal = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "saha/ada")
         Ada.kanal = kanal
+        Ada.app = applicationContext
         kanal.setMethodCallHandler { call, result ->
             when (call.method) {
                 "izin" -> result.success(Ada.izinVar(this))
@@ -29,11 +32,11 @@ class MainActivity : FlutterActivity() {
                 }
                 "guncelle" -> {
                     Ada.durum = call.arguments as? Map<*, *> ?: emptyMap<Any, Any>()
-                    Ada.yenile()
+                    Ada.yenile(applicationContext)
                     result.success(true)
                 }
                 "gizle" -> {
-                    Ada.gizle()
+                    Ada.gizle(applicationContext)
                     result.success(null)
                 }
                 "kareler" -> {
@@ -41,6 +44,13 @@ class MainActivity : FlutterActivity() {
                     @Suppress("UNCHECKED_CAST")
                     Ada.kareKaydet(a["id"] as String, (a["ms"] as Number).toInt(), a["kareler"] as List<ByteArray>)
                     result.success(null)
+                }
+                "bildirimIzni" -> {
+                    // Android 13+: the workout notification needs this once; the system asks at most twice.
+                    if (!Ada.bildirimIzni(this) && Build.VERSION.SDK_INT >= 33) {
+                        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 41)
+                    }
+                    result.success(Ada.bildirimIzni(this))
                 }
                 "arkayaAl" -> {
                     moveTaskToBack(true)
@@ -53,7 +63,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         // The Dart side lives with this activity: without it the island could not log anything.
-        Ada.gizle()
+        Ada.gizle(applicationContext)
         Ada.kanal = null
         super.onDestroy()
     }

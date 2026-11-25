@@ -253,6 +253,8 @@ class _ExercisePageState extends State<ExercisePage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
+        persist: false,
+        duration: const Duration(seconds: 5),
         content: Text(trf('Düzenlendi: {0}', [type.text({...old, ...res})])),
         action: SnackBarAction(label: tr('Geri al'), textColor: C.accent, onPressed: () => store.putRecord(e.id, old)),
       ));
@@ -264,6 +266,8 @@ class _ExercisePageState extends State<ExercisePage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
+        persist: false,
+        duration: const Duration(seconds: 5),
         content: Text(trf('Kayıt silindi: {0}', [e.type!.text(r)])),
         action: SnackBarAction(label: tr('Geri al'), textColor: C.accent, onPressed: store.restoreLast),
       ));

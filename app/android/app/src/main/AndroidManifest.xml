@@ -1,10 +1,14 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <!-- Workout island: rest timer and set controls shown over other apps. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Android 16 Live Updates (promoted ongoing notifications). -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" tools:ignore="UnknownPermission"/>
     <application
         android:label="Sportami"
         android:name="${applicationName}"
@@ -37,8 +41,9 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Workout island: shows the rest countdown and the current set over other apps while training."/>
+                android:value="Workout in progress: keeps the rest timer running and shows the current set and the rest countdown in a notification and over other apps."/>
         </service>
+        <receiver android:name=".AdaEylem" android:exported="false"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
