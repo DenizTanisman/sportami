@@ -30,7 +30,8 @@ While you train, a small island can stay at the top of the screen when you leave
   - the animation of the current exercise;
   - the set number, for example SET 1 / 3;
   - the dose, sets × reps (3 × 10) or the time;
-  - during a rest, the countdown with a ring.
+  - a circle with the set number: when a set is logged a check draws itself and the next number slides in, during a rest its ring counts down;
+  - when a rest runs out, the circle shows "!" and the island glows amber until the next set; when the day is done, a green wave.
 - **Tap it** to open it. From the open island you can:
   - log the set without opening the app, and change kg or reps first;
   - start a timed set; the countdown runs and the set is logged when time is up;
@@ -127,7 +128,7 @@ Code layout (`app/lib/`). The app started as a Turkish project, so file names an
 | `data.dart` | Catalog, program, records |
 | `wheel.dart`, `figure.dart`, `body_map.dart`, `media.dart` | Wheels, drawn animations, body map, media |
 | `today.dart`, `exercise_page.dart`, `program_page.dart`, `progress_page.dart` | Screens |
-| `ada.dart` (`ada` = island) | Workout notification and island: what they show and what their buttons do. The Android side is in `android/app/src/main/kotlin/.../`: `Ada.kt` (bridge, service, notification) and `AdaGorunum.kt` (the overlay view) |
+| `ada.dart` (`ada` = island) | Workout notification and island: what they show and what their buttons do. The Android side is in `android/app/src/main/kotlin/.../`: `Ada.kt` (bridge, service, notification) and `AdaGorunum.kt` (the overlay view), `AdaDaire.kt`, `AdaKok.kt`, `AdaRenk.kt` (circle, glow and colors from Agent Presence) |
 
 Data (`app/assets/data/`):
 

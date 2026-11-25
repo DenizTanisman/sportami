@@ -98,13 +98,20 @@ class AdaGorunum(private val c: Context, private val wm: WindowManager) {
 
     // ---- views ---------------------------------------------------------------------
 
-    private val kok = FrameLayout(c)
+    private val kok = AdaKok(c).apply {
+        orientation = LinearLayout.VERTICAL
+        clipToPadding = false
+        clipChildren = false
+    }
 
     private val kAnim = ImageView(c)
     private val kBaslik = tv(13.5f, 650)
     private val kAlt = tv(11.5f, 650, turuncu)
     private val kSag = tv(17f, 700, sayi = true)
-    private val kHalka = Halka(c)
+    // Agent Presence's step circle: the set number; a check draws itself when a set is logged, the next number
+    // slides in; "!" with a halo when a rest has run out; a green wave when the day is done.
+    private val kDaire = AdaDaire(c).apply { fill = 0.6f }
+    private val gDaire = AdaDaire(c).apply { fill = 0.6f }
     private val kompakt = LinearLayout(c)
 
     private val gUst = tv(11.5f, 700, turuncu).apply { letterSpacing = 0.08f }
@@ -168,7 +175,7 @@ class AdaGorunum(private val c: Context, private val wm: WindowManager) {
         kAlt.maxWidth = kBaslik.maxWidth
         kompakt.addView(kMetin, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dpi(10); rightMargin = dpi(12) })
         kompakt.addView(kSag, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dpi(8) })
-        kompakt.addView(kHalka, LinearLayout.LayoutParams(dpi(24), dpi(24)))
+        kompakt.addView(kDaire, LinearLayout.LayoutParams(dpi(36), dpi(36)))
 
         // open card
         genis.orientation = LinearLayout.VERTICAL
@@ -178,6 +185,7 @@ class AdaGorunum(private val c: Context, private val wm: WindowManager) {
         val ust = LinearLayout(c).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            addView(gDaire, LinearLayout.LayoutParams(dpi(30), dpi(30)).apply { rightMargin = dpi(6) })
             addView(gUst, LinearLayout.LayoutParams(0, -2, 1f))
             addView(gSira, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dpi(10) })
             addView(ikon("↗") { uygulamayiAc() })
@@ -227,9 +235,9 @@ class AdaGorunum(private val c: Context, private val wm: WindowManager) {
 
         val kenar = dpi(8)
         kok.setPadding(kenar, kenar, kenar, kenar)
-        kok.clipToPadding = false
-        kok.addView(kompakt, FrameLayout.LayoutParams(-2, dpi(48)).apply { gravity = Gravity.CENTER_HORIZONTAL })
-        kok.addView(genis, FrameLayout.LayoutParams(min(dpi(372), ekranW - dpi(16)), -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        kok.radius = dp(14)
+        kok.addView(kompakt, LinearLayout.LayoutParams(-2, dpi(48)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        kok.addView(genis, LinearLayout.LayoutParams(min(dpi(372), ekranW - dpi(16)), -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
         genis.visibility = View.GONE
 
         surukle(kompakt) { ac() }
@@ -302,7 +310,8 @@ class AdaGorunum(private val c: Context, private val wm: WindowManager) {
         genis.pivotY = 0f
         genis.post { genis.pivotX = genis.width / 2f }
         genis.scaleX = 0.55f; genis.scaleY = 0.3f; genis.alpha = 0f
-        genis.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(260).setInterpolator(OvershootInterpolator(0.9f)).start()
+        genis.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(260).setInterpolator(OvershootInterpolator(0.9f))
+            .setUpdateListener { kok.invalidate() }.start()
         yenile(son)
     }
 
@@ -313,8 +322,36 @@ class AdaGorunum(private val c: Context, private val wm: WindowManager) {
             genis.visibility = View.GONE
             kompakt.visibility = View.VISIBLE
             kompakt.scaleX = 0.8f; kompakt.alpha = 0f
-            kompakt.animate().scaleX(1f).alpha(1f).setDuration(180).start()
+            kompakt.animate().scaleX(1f).alpha(1f).setDuration(180).setUpdateListener { kok.invalidate() }.start()
+            parilti()
         }.start()
+    }
+
+    private var parliyor = false
+
+    /**
+     * Agent Presence's alert glow around the pill or the card: amber and pulsing when a rest has run out (the next
+     * set waits), green when the day is done. The window grows by the glow's room and moves back by the same amount,
+     * so the island itself stays where it is.
+     */
+    private fun parilti() {
+        val hedef = if (acikMi) genis else kompakt
+        val renk = when {
+            mod == "bitti" -> Renk.GREEN
+            son["dikkat"] == true -> Renk.AMBER
+            else -> null
+        }
+        kok.glows = if (renk == null) emptyList()
+        else listOf(AdaKok.Glow(hedef, renk, pulse = renk == Renk.AMBER, corner = if (acikMi) dp(30) else dp(24)))
+        val simdi = renk != null
+        if (simdi != parliyor) {
+            parliyor = simdi
+            val k = dpi(if (simdi) 20 else 8)
+            val fark = k - kok.paddingTop
+            kok.setPadding(k, k, k, k)
+            lp.y -= fark
+            try { wm.updateViewLayout(kok, lp) } catch (_: Exception) {}
+        }
     }
 
     private fun uygulamayiAc() {
@@ -406,6 +443,15 @@ class AdaGorunum(private val c: Context, private val wm: WindowManager) {
             if (kareler.isNotEmpty()) el.post(oynat) else { kAnim.setImageDrawable(null); gAnim.setImageDrawable(null) }
         }
         kAnim.visibility = if (kareler.isEmpty() && id == null) View.GONE else View.VISIBLE
+        val gorunus = when {
+            mod == "bitti" -> AdaDaire.Look.DONE
+            d["dikkat"] == true -> AdaDaire.Look.WAITING
+            else -> AdaDaire.Look.ACTIVE
+        }
+        val no = max(1, (d["setNo"] as? Number)?.toInt() ?: 1)
+        kDaire.bind(gorunus, no, null)
+        gDaire.bind(gorunus, no, null)
+        parilti()
         saatYaz()
     }
 
@@ -439,13 +485,14 @@ class AdaGorunum(private val c: Context, private val wm: WindowManager) {
             kSag.text = yazi
             gSure.text = yazi
             val oran = if (toplam > 0) (kalanMs / (toplam * 1000f)).coerceIn(0f, 1f) else 0f
-            kHalka.oran = oran
+            kDaire.oran = oran
+            gDaire.oran = oran
             gCubuk.oran = oran
-            kHalka.renk = turuncu
         } else {
             kSag.text = s("sag")
-            kHalka.oran = ((son["ilerleme"] as? Number)?.toFloat() ?: 0f)
-            kHalka.renk = if (kHalka.oran >= 1f) yesil else turuncu
+            val oran = (son["ilerleme"] as? Number)?.toFloat() ?: 0f
+            kDaire.oran = oran
+            gDaire.oran = oran
         }
         kSag.visibility = if (kSag.text.isNullOrEmpty()) View.GONE else View.VISIBLE
     }
@@ -456,30 +503,9 @@ class AdaGorunum(private val c: Context, private val wm: WindowManager) {
         ValueAnimator.ofFloat(1f, 1.1f, 1f).apply {
             duration = 520
             repeatCount = 1
-            addUpdateListener { val f = it.animatedValue as Float; hedef.scaleX = f; hedef.scaleY = f }
+            addUpdateListener { val f = it.animatedValue as Float; hedef.scaleX = f; hedef.scaleY = f; kok.invalidate() }
             start()
         }
-    }
-}
-
-/** Ring that fills with [oran] (0..1). */
-class Halka(c: Context) : View(c) {
-    var oran = 0f
-        set(v) { if (field != v) { field = v; invalidate() } }
-    var renk = Color.rgb(255, 106, 43)
-        set(v) { if (field != v) { field = v; invalidate() } }
-    private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
-    private val r = RectF()
-
-    override fun onDraw(cv: Canvas) {
-        val w = width.toFloat()
-        val k = w * 0.13f
-        p.strokeWidth = k
-        r.set(k / 2 + 1, k / 2 + 1, w - k / 2 - 1, height - k / 2 - 1)
-        p.color = Color.rgb(48, 48, 54)
-        cv.drawArc(r, 0f, 360f, false, p)
-        p.color = renk
-        if (oran > 0f) cv.drawArc(r, -90f, 360f * oran, false, p)
     }
 }
 

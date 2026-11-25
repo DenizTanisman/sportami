@@ -161,6 +161,7 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
     Lang.current.addListener(_degisti);
     _imza = _imzaHesapla();
     izinYenile();
+    _onYukle = Timer(const Duration(seconds: 3), _kareOnYukle);
     // The workout ends two hours after the last set even if nothing else happens.
     Timer.periodic(const Duration(minutes: 1), (_) => _gonder());
   }
@@ -225,6 +226,8 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> adayaGec() async {
     _elleMs = DateTime.now().millisecondsSinceEpoch;
     _kapatildi = false;
+    // The animation frames are drawn by the app; in the background that can stall, so the first ones go now.
+    await _kareOnYukle(enCok: 3).timeout(const Duration(seconds: 3), onTimeout: () {});
     try {
       await _kanal.invokeMethod('arkayaAl');
     } catch (_) {}
@@ -456,7 +459,8 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
         final s = jsonEncode(d);
         if (_gosteriliyor && s == _sonGiden) continue;
         final id = d['id'] as String?;
-        if (id != null && _adaVar) await _kareGonder(id);
+        // Never wait for frames here: drawing them in the background can stall the island's updates.
+        if (id != null && _adaVar) unawaited(_kareGonder(id));
         // In the background the native side rings at the end of a rest; in the app the app does.
         rest.sessiz = _arkada;
         if (!_arkada && !_bildirimSoruldu) {
@@ -475,13 +479,19 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   /// Animation frames of the current and the next steps, drawn while the app is open.
-  Future<void> _kareOnYukle() async {
+  /// Animation frames of today's exercises, drawn while the app is open (from the current one on, then the
+  /// earlier ones), so the island can show every exercise it moves to.
+  Future<void> _kareOnYukle({int? enCok}) async {
     if (_arkada || !hazir) return;
     final l = _kalemler();
+    if (l.isEmpty) return;
     final i = _simdiki(l) ?? 0;
-    for (var j = i; j < l.length && j < i + 3; j++) {
-      if (_arkada) return;
-      await _kareGonder(l[j].e.id);
+    final sira = [for (var j = 0; j < l.length; j++) l[(i + j) % l.length].e.id];
+    var n = 0;
+    for (final id in sira) {
+      if (_arkada && enCok == null) return;
+      if (enCok != null && n++ >= enCok) return;
+      await _kareGonder(id);
     }
   }
 
@@ -507,6 +517,8 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
     if (s == AppLifecycleState.resumed) {
       _arkada = false;
       izinYenile();
+      _onYukle?.cancel();
+      _onYukle = Timer(const Duration(milliseconds: 1500), _kareOnYukle);
     } else if (s == AppLifecycleState.paused || s == AppLifecycleState.hidden) {
       _arkada = true;
     }
