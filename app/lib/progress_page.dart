@@ -314,8 +314,8 @@ class _AdaAyar extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-              tr('Uygulamadan çıkınca kameranın altında küçük bir daire kalır; molada sayaçlı bir kapsüle dönüşür, dokununca seti, dozu, düğmeleri ve günün hareketlerini gösterir. '
-                  'Mola bitince turuncu yanıp sıradaki seti söyler. Antrenman bildirimi ada kapalıyken de bildirim panelinde durur.'),
+              tr('Uygulamadan çıkınca ekranın üstünde küçük bir ada kalır: mola sayacı, sıradaki hareketin animasyonu ve set × tekrar ya da süre. '
+                  'Seti oradan kaydedip molada başka uygulamaları kullanabilirsin. Antrenman bildirimi ada kapalıyken de bildirim panelinde durur.'),
               style: T.caption),
           if (ada.acik && !ada.izin) ...[
             const SizedBox(height: 12),

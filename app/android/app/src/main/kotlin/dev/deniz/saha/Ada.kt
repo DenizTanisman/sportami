@@ -246,9 +246,8 @@ object Bildirim {
         val mod = s(d, "mod")
         val b = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(c, KANAL) else @Suppress("DEPRECATION") Notification.Builder(c)
         val renk = when {
-            mod == "bitti" -> Renk.GREEN
-            d["dikkat"] == true -> Renk.AMBER
-            else -> Renk.BLUE
+            mod == "bitti" -> 0xFF30D158.toInt()
+            else -> 0xFFFF6A2B.toInt() // the island's orange
         }
         val ac = PendingIntent.getActivity(
             c, 0,

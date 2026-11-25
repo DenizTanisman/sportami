@@ -6,114 +6,321 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.PixelFormat
-import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
-import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.InsetDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.text.SpannableStringBuilder
-import android.text.Spanned
 import android.text.TextUtils
-import android.text.style.AbsoluteSizeSpan
-import android.text.style.ForegroundColorSpan
-import android.text.style.StyleSpan
-import android.text.style.TypefaceSpan
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
-import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.min
 
 /**
- * The island over other apps, in Agent Presence's look (github.com/DenizTanisman/agent-presence):
- *
- * - **Minimal**: one circle right under the camera hole. Its number is the set to do; the ring shows the sets done.
- * - **Compact**: a pill under the status bar: circle, the exercise's animation, its name and the one datum (the rest
- *   countdown, or sets done). A capsule under it says what comes next. Its resting size during a rest or a timed set,
- *   and after a rest until the next set is logged.
- * - **Open**: a card with the exercise (animation, set, dose, what will be logged), the countdown, the buttons and
- *   the day's exercises as a task list (Bitti / Sürüyor / Sırada).
- *
- * When a rest is over the card opens by itself for a few seconds and glows amber, like an agent waiting for its owner.
- * Dart (lib/ada.dart) decides every word; this only draws. Main thread only.
+ * The island: a black pill under the status bar (like a phone's camera cut-out grown wide).
+ * Collapsed it shows the animation, the exercise, "SET 2 / 3 · 3 × 10" or the rest countdown.
+ * Tapped it opens into a card with the bigger animation, the dose and the buttons.
+ * It can be dragged anywhere; a tap without moving opens or closes it.
  */
-@SuppressLint("ViewConstructor", "SetTextI18n")
+@SuppressLint("ViewConstructor", "SetTextI18n", "ClickableViewAccessibility")
 class AdaGorunum(private val c: Context, private val wm: WindowManager) {
-    private enum class Mod { MINIMAL, KOMPAKT, ACIK }
+    private val turuncu = Color.rgb(255, 106, 43)
+    private val metin2 = Color.rgb(161, 161, 166)
+    private val metin3 = Color.rgb(110, 110, 116)
+    private val yuzey = Color.rgb(14, 14, 17)
+    private val cizgi = Color.rgb(42, 42, 48)
+    private val yesil = Color.rgb(48, 209, 88)
 
-    private val el = Handler(Looper.getMainLooper())
-    private val kok = AdaKok(c).apply {
-        orientation = LinearLayout.VERTICAL
-        clipToPadding = false
-        clipChildren = false
+    private fun dp(v: Number) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), c.resources.displayMetrics)
+    private fun dpi(v: Number) = dp(v).toInt()
+
+    private val inter: Typeface? = try {
+        Typeface.createFromAsset(c.assets, "flutter_assets/assets/fonts/Inter.ttf")
+    } catch (_: Exception) {
+        null
     }
-    private val lp = WindowManager.LayoutParams(
-        WRAP, WRAP,
-        if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE,
-        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-        PixelFormat.TRANSLUCENT,
-    ).apply {
-        gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        if (Build.VERSION.SDK_INT >= 30) {
-            setFitInsetsTypes(0)
-            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-        } else if (Build.VERSION.SDK_INT >= 28) {
-            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+
+    private fun yazi(w: Int): Typeface {
+        if (inter != null && Build.VERSION.SDK_INT >= 26) {
+            try {
+                return Typeface.Builder(c.assets, "flutter_assets/assets/fonts/Inter.ttf")
+                    .setFontVariationSettings("'wght' $w").build()
+            } catch (_: Exception) {
+            }
         }
-        title = "SahaAda"
+        return Typeface.create(inter ?: Typeface.DEFAULT, if (w >= 600) Typeface.BOLD else Typeface.NORMAL)
     }
 
-    // ---- state ---------------------------------------------------------------------------
+    private val yazilar = HashMap<Int, Typeface>()
+    private fun tf(w: Int) = yazilar.getOrPut(w) { yazi(w) }
 
-    private var d: Map<*, *> = emptyMap<Any, Any>()
-
-    /** A size set for a while (a tap, the end of a rest). Null = the resting size. */
-    private var elle: Mod? = null
-    private val elleBitti = Runnable {
-        elle = null
-        ciz()
+    private fun tv(boy: Float, w: Int, renk: Int = Color.WHITE, sayi: Boolean = false) = TextView(c).apply {
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, boy)
+        typeface = tf(w)
+        setTextColor(renk)
+        includeFontPadding = false
+        if (sayi) fontFeatureSettings = "tnum"
+        maxLines = 1
+        ellipsize = TextUtils.TruncateAt.END
     }
-    private var eskiDikkat = false
-    private var sekil: String? = null
 
-    private val daire = AdaDaire(c)
-    private val sayaclar = ArrayList<TextView>()
-    private var cubuk: Cubuk? = null
-    private val animlar = ArrayList<ImageView>()
+    private fun zemin(renk: Int, yaricap: Float, kenar: Int? = null) = GradientDrawable().apply {
+        setColor(renk)
+        cornerRadius = yaricap
+        if (kenar != null) setStroke(dpi(1), kenar)
+    }
 
-    private var kareId: String? = null
-    private var kareler: List<Bitmap> = emptyList()
-    private var kareMs = 100
-    private var kareNo = 0
+    private fun yuvarlat(v: View, r: Float) {
+        v.outlineProvider = object : ViewOutlineProvider() {
+            override fun getOutline(view: View, o: Outline) = o.setRoundRect(0, 0, view.width, view.height, r)
+        }
+        v.clipToOutline = true
+    }
 
-    private fun s(k: String) = d[k] as? String ?: ""
-    private fun l(k: String) = (d[k] as? Number)?.toLong() ?: 0L
-    private fun i(k: String) = (d[k] as? Number)?.toInt() ?: 0
-    private fun kelime(k: String) = (d["L"] as? Map<*, *>)?.get(k) as? String ?: ""
+    // ---- views ---------------------------------------------------------------------
 
-    private val mod get() = s("mod")
-    private val dikkat get() = d["dikkat"] == true
-    private val sayac get() = mod == "mola" || mod == "is"
-    private val bitis get() = if (mod == "mola") l("molaSon") else if (mod == "is") l("isSon") else 0L
-    private val toplamSn get() = if (mod == "mola") i("molaToplam") else i("isToplam")
+    private val kok = FrameLayout(c)
+
+    private val kAnim = ImageView(c)
+    private val kBaslik = tv(13.5f, 650)
+    private val kAlt = tv(11.5f, 650, turuncu)
+    private val kSag = tv(17f, 700, sayi = true)
+    private val kHalka = Halka(c)
+    private val kompakt = LinearLayout(c)
+
+    private val gUst = tv(11.5f, 700, turuncu).apply { letterSpacing = 0.08f }
+    private val gSira = tv(12f, 560, metin3, sayi = true)
+    private val gAnim = ImageView(c)
+    private val gBaslik = tv(18f, 700).apply { maxLines = 2 }
+    private val gDoz = tv(30f, 720, sayi = true)
+    private val gSet = tv(12.5f, 700, turuncu).apply { letterSpacing = 0.06f }
+    private val gKayit = tv(12.5f, 500, metin2).apply { maxLines = 2 }
+    private val gSure = tv(52f, 660, sayi = true).apply { gravity = Gravity.CENTER }
+    private val gCubuk = Cubuk(c)
+    private val gSonraki = tv(13f, 560, metin2).apply { gravity = Gravity.CENTER }
+    private val gSureBlok = LinearLayout(c)
+    private val bOnceki = dugme("‹", false)
+    private val bBirincil = dugme("", true)
+    private val bSonraki = dugme("›", false)
+    private val ikinciSira = LinearLayout(c)
+    private val genis = LinearLayout(c)
+
+    private var acikMi = false
+    private val lp = WindowManager.LayoutParams(
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+        if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        PixelFormat.TRANSLUCENT,
+    )
+
+    private fun dugme(yazi: String, ana: Boolean) = TextView(c).apply {
+        text = yazi
+        gravity = Gravity.CENTER
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, if (yazi == "‹" || yazi == "›") 26f else 15f)
+        typeface = tf(680)
+        includeFontPadding = false
+        setTextColor(if (ana) Color.rgb(20, 10, 4) else Color.WHITE)
+        background = zemin(if (ana) turuncu else Color.rgb(38, 38, 44), dp(16))
+        maxLines = 1
+        ellipsize = TextUtils.TruncateAt.END
+        setPadding(dpi(12), 0, dpi(12), 0)
+    }
+
+    init {
+        val ekranW = c.resources.displayMetrics.widthPixels
+
+        // collapsed pill
+        kompakt.orientation = LinearLayout.HORIZONTAL
+        kompakt.gravity = Gravity.CENTER_VERTICAL
+        kompakt.background = zemin(Color.BLACK, dp(24), Color.rgb(30, 30, 34))
+        kompakt.setPadding(dpi(6), dpi(6), dpi(10), dpi(6))
+        kompakt.elevation = dp(10)
+        kAnim.background = zemin(Color.rgb(28, 28, 32), dp(14))
+        kAnim.scaleType = ImageView.ScaleType.FIT_CENTER
+        yuvarlat(kAnim, dp(14))
+        kompakt.addView(kAnim, LinearLayout.LayoutParams(dpi(36), dpi(36)))
+        val kMetin = LinearLayout(c).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(kBaslik, LinearLayout.LayoutParams(-2, -2))
+            addView(kAlt, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dpi(3) })
+        }
+        kBaslik.maxWidth = min(dpi(220), (ekranW * 0.52).toInt())
+        kAlt.maxWidth = kBaslik.maxWidth
+        kompakt.addView(kMetin, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dpi(10); rightMargin = dpi(12) })
+        kompakt.addView(kSag, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dpi(8) })
+        kompakt.addView(kHalka, LinearLayout.LayoutParams(dpi(24), dpi(24)))
+
+        // open card
+        genis.orientation = LinearLayout.VERTICAL
+        genis.background = zemin(yuzey, dp(30), cizgi)
+        genis.elevation = dp(14)
+        genis.setPadding(dpi(16), dpi(14), dpi(16), dpi(16))
+        val ust = LinearLayout(c).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(gUst, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(gSira, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dpi(10) })
+            addView(ikon("↗") { uygulamayiAc() })
+            addView(ikon("—") { kapat() }, LinearLayout.LayoutParams(dpi(34), dpi(30)).apply { leftMargin = dpi(4) })
+            addView(ikon("✕") { Ada.eylem("kapat") }, LinearLayout.LayoutParams(dpi(34), dpi(30)).apply { leftMargin = dpi(4) })
+        }
+        genis.addView(ust)
+        val orta = LinearLayout(c).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        gAnim.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Color.rgb(36, 36, 42), Color.rgb(22, 22, 26))).apply { cornerRadius = dp(22) }
+        gAnim.scaleType = ImageView.ScaleType.FIT_CENTER
+        yuvarlat(gAnim, dp(22))
+        orta.addView(gAnim, LinearLayout.LayoutParams(dpi(108), dpi(108)))
+        val sag = LinearLayout(c).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(gSet)
+            addView(gBaslik, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dpi(6) })
+            addView(gDoz, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dpi(6) })
+            addView(gKayit, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dpi(6) })
+        }
+        orta.addView(sag, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dpi(14) })
+        genis.addView(orta, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dpi(12) })
+
+        gSureBlok.orientation = LinearLayout.VERTICAL
+        gSureBlok.addView(gSure, LinearLayout.LayoutParams(-1, -2))
+        gSureBlok.addView(gCubuk, LinearLayout.LayoutParams(-1, dpi(6)).apply { topMargin = dpi(10) })
+        gSureBlok.addView(gSonraki, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dpi(10) })
+        genis.addView(gSureBlok, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dpi(14) })
+
+        val sira = LinearLayout(c).apply {
+            orientation = LinearLayout.HORIZONTAL
+            isBaselineAligned = false
+            addView(bOnceki, LinearLayout.LayoutParams(dpi(52), dpi(52)))
+            addView(bBirincil, LinearLayout.LayoutParams(0, dpi(52), 1f).apply { leftMargin = dpi(8); rightMargin = dpi(8) })
+            addView(bSonraki, LinearLayout.LayoutParams(dpi(52), dpi(52)))
+        }
+        genis.addView(sira, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dpi(14) })
+        ikinciSira.orientation = LinearLayout.HORIZONTAL
+        ikinciSira.isBaselineAligned = false
+        genis.addView(ikinciSira, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dpi(8) })
+
+        bBirincil.setOnClickListener { dokun(it); Ada.eylem("birincil") }
+        bOnceki.setOnClickListener { dokun(it); Ada.eylem("onceki") }
+        bSonraki.setOnClickListener { dokun(it); Ada.eylem("sonraki") }
+
+        val kenar = dpi(8)
+        kok.setPadding(kenar, kenar, kenar, kenar)
+        kok.clipToPadding = false
+        kok.addView(kompakt, FrameLayout.LayoutParams(-2, dpi(48)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        kok.addView(genis, FrameLayout.LayoutParams(min(dpi(372), ekranW - dpi(16)), -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        genis.visibility = View.GONE
+
+        surukle(kompakt) { ac() }
+        surukle(ust) { kapat() }
+        surukle(orta) { kapat() }
+
+        lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        lp.y = durumCubugu() + dpi(2)
+    }
+
+    private fun ikon(s: String, f: () -> Unit) = TextView(c).apply {
+        text = s
+        gravity = Gravity.CENTER
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+        setTextColor(metin2)
+        background = zemin(Color.rgb(30, 30, 35), dp(15))
+        layoutParams = LinearLayout.LayoutParams(dpi(34), dpi(30))
+        setOnClickListener { dokun(it); f() }
+    }
+
+    private fun dokun(v: View) {
+        v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+    }
+
+    private fun durumCubugu(): Int {
+        val id = c.resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (id > 0) c.resources.getDimensionPixelSize(id) else dpi(24)
+    }
+
+    /** Drag moves the window; a tap (no movement) runs [tik]. */
+    private fun surukle(v: View, tik: () -> Unit) {
+        var x0 = 0f
+        var y0 = 0f
+        var lx = 0
+        var ly = 0
+        var oynadi = false
+        v.setOnTouchListener { _, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    x0 = e.rawX; y0 = e.rawY; lx = lp.x; ly = lp.y; oynadi = false
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = e.rawX - x0
+                    val dy = e.rawY - y0
+                    if (!oynadi && (abs(dx) > dp(8) || abs(dy) > dp(8))) oynadi = true
+                    if (oynadi) {
+                        lp.x = lx + dx.toInt()
+                        lp.y = max(0, ly + dy.toInt())
+                        try { wm.updateViewLayout(kok, lp) } catch (_: Exception) {}
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!oynadi) { dokun(v); tik() }
+                    true
+                }
+                else -> true
+            }
+        }
+    }
+
+    // ---- open / close -------------------------------------------------------------------
+
+    private fun ac() {
+        if (acikMi) return
+        acikMi = true
+        kompakt.visibility = View.GONE
+        genis.visibility = View.VISIBLE
+        genis.pivotY = 0f
+        genis.post { genis.pivotX = genis.width / 2f }
+        genis.scaleX = 0.55f; genis.scaleY = 0.3f; genis.alpha = 0f
+        genis.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(260).setInterpolator(OvershootInterpolator(0.9f)).start()
+        yenile(son)
+    }
+
+    private fun kapat() {
+        if (!acikMi) return
+        acikMi = false
+        genis.animate().scaleX(0.6f).scaleY(0.3f).alpha(0f).setDuration(160).withEndAction {
+            genis.visibility = View.GONE
+            kompakt.visibility = View.VISIBLE
+            kompakt.scaleX = 0.8f; kompakt.alpha = 0f
+            kompakt.animate().scaleX(1f).alpha(1f).setDuration(180).start()
+        }.start()
+    }
+
+    private fun uygulamayiAc() {
+        val i = Intent(c, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        try { c.startActivity(i) } catch (_: Exception) {}
+    }
 
     fun ekle() {
         wm.addView(kok, lp)
@@ -122,14 +329,71 @@ class AdaGorunum(private val c: Context, private val wm: WindowManager) {
 
     fun kaldir() {
         el.removeCallbacksAndMessages(null)
-        runCatching { wm.removeView(kok) }
+        try { wm.removeView(kok) } catch (_: Exception) {}
     }
 
-    fun yenile(yeni: Map<*, *>) {
-        d = yeni
-        // A rest just ended: open for a few seconds, amber, like an agent asking for its owner.
-        if (dikkat && !eskiDikkat) birSure(Mod.ACIK, 8000)
-        eskiDikkat = dikkat
+    // ---- state -------------------------------------------------------------------------------
+
+    private var son: Map<*, *> = emptyMap<Any, Any>()
+    private var mod = ""
+    private var dugmeImza = ""
+    private var bitis = 0L
+    private var toplam = 0
+    private var kareId: String? = null
+    private var kareler: List<Bitmap> = emptyList()
+    private var kareMs = 100
+    private var kareNo = 0
+
+    private fun s(k: String) = son[k] as? String ?: ""
+    private fun l(k: String) = (son[k] as? Number)?.toLong() ?: 0L
+
+    fun yenile(d: Map<*, *>) {
+        son = d
+        mod = s("mod")
+        val L = d["L"] as? Map<*, *>
+        val sayac = mod == "mola" || mod == "is"
+        bitis = if (mod == "mola") l("molaSon") else if (mod == "is") l("isSon") else 0L
+        toplam = ((if (mod == "mola") d["molaToplam"] else d["isToplam"]) as? Number)?.toInt() ?: 0
+
+        kBaslik.text = s("kisa")
+        kAlt.text = s("kisaAlt")
+        kAlt.setTextColor(if (sayac) turuncu else metin2)
+        gUst.text = s("ust")
+        gSira.text = s("sira")
+        gBaslik.text = s("baslik")
+        gDoz.text = s("doz")
+        gDoz.visibility = if (s("doz").isEmpty()) View.GONE else View.VISIBLE
+        gSet.text = if (mod == "mola") (L?.get("mola") as? String ?: s("kisaAlt")) else s("set")
+        // A just-saved note takes the "will log" line for a moment, so the buttons never move under a finger.
+        val not = s("not")
+        gKayit.text = if (not.isNotEmpty()) not else s("kayit")
+        gKayit.setTextColor(if (not.isNotEmpty()) yesil else metin2)
+        gKayit.visibility = if (gKayit.text.isNullOrEmpty()) View.GONE else View.VISIBLE
+        gSureBlok.visibility = if (sayac) View.VISIBLE else View.GONE
+        gSonraki.text = s("sonraki")
+        gSonraki.visibility = if (s("sonraki").isEmpty()) View.GONE else View.VISIBLE
+
+        bBirincil.text = s("birincil")
+        val gez = d["gezinme"] == true
+        bOnceki.visibility = if (gez) View.VISIBLE else View.GONE
+        bSonraki.visibility = if (gez) View.VISIBLE else View.GONE
+        // second row: −15 / +15 in rest, kg and reps steps before a set, "OK" for a timed warm-up
+        val dl = (d["dugmeler"] as? List<*>)?.mapNotNull { it as? Map<*, *> } ?: emptyList()
+        val imza = dl.joinToString("|") { "${it["y"]}>${it["e"]}" }
+        if (imza != dugmeImza) {
+            dugmeImza = imza
+            ikinciSira.removeAllViews()
+            dl.forEachIndexed { i, m ->
+                val e = m["e"] as? String ?: return@forEachIndexed
+                val b = dugme(m["y"] as? String ?: "", false).apply {
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, if (dl.size > 2) 13.5f else 15f)
+                    setPadding(dpi(4), 0, dpi(4), 0)
+                    setOnClickListener { dokun(it); Ada.eylem(e) }
+                }
+                ikinciSira.addView(b, LinearLayout.LayoutParams(0, dpi(44), 1f).apply { if (i > 0) leftMargin = dpi(6) })
+            }
+        }
+        ikinciSira.visibility = if (dl.isEmpty()) View.GONE else View.VISIBLE
 
         val id = d["id"] as? String
         val k = Ada.kareler(id)
@@ -138,696 +402,23 @@ class AdaGorunum(private val c: Context, private val wm: WindowManager) {
             kareler = k?.second ?: emptyList()
             kareMs = max(40, k?.first ?: 100)
             kareNo = 0
+            el.removeCallbacks(oynat)
+            if (kareler.isNotEmpty()) el.post(oynat) else { kAnim.setImageDrawable(null); gAnim.setImageDrawable(null) }
         }
-        ciz()
-    }
-
-    /** Rest or timed set over (the service rings): a short pulse. */
-    fun uyar() {
-        val v = kok.getChildAt(0) ?: return
-        ValueAnimator.ofFloat(1f, 1.08f, 1f).apply {
-            duration = 480
-            repeatCount = 1
-            addUpdateListener {
-                val f = it.animatedValue as Float
-                v.scaleX = f
-                v.scaleY = f
-                kok.invalidate()
-            }
-            start()
-        }
-    }
-
-    private fun birSure(m: Mod, ms: Long) {
-        elle = m
-        el.removeCallbacks(elleBitti)
-        el.postDelayed(elleBitti, ms)
-    }
-
-    private fun dinlenme(): Mod = when {
-        sayac || dikkat -> Mod.KOMPAKT
-        else -> Mod.MINIMAL
-    }
-
-    private fun ac() {
-        birSure(Mod.ACIK, 20000)
-        ciz()
-    }
-
-    private fun kucult() {
-        el.removeCallbacks(elleBitti)
-        elle = null
-        ciz()
-    }
-
-    /** A button on the open card: keeps it open a while longer. */
-    private fun bas(v: View, e: String) {
-        v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-        if (elle == Mod.ACIK) birSure(Mod.ACIK, 20000)
-        Ada.eylem(e)
-    }
-
-    private fun uygulamayiAc() {
-        val i = Intent(c, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        runCatching { c.startActivity(i) }
-    }
-
-    // ---- drawing -----------------------------------------------------------------------------
-
-    private fun ciz() {
-        val m = elle ?: dinlenme()
-        sayaclar.clear()
-        animlar.clear()
-        cubuk = null
-        kok.removeAllViews()
-        (daire.parent as? ViewGroup)?.removeView(daire)
-
-        val chip = if (m == Mod.MINIMAL) dp(32) else dp(44)
-        val ana = when (m) {
-            Mod.ACIK -> acik()
-            Mod.KOMPAKT -> kompakt()
-            Mod.MINIMAL -> daireCip(chip)
-        }
-        kok.addView(ana, LinearLayout.LayoutParams(WRAP, WRAP).apply {
-            gravity = if (m == Mod.MINIMAL) Gravity.START else Gravity.CENTER_HORIZONTAL
-        })
-        val kapsulYazi = s("kapsul")
-        var kapsul: View? = null
-        if (m == Mod.KOMPAKT && kapsulYazi.isNotEmpty()) {
-            kapsul = kapsul(kapsulYazi, if (dikkat) Renk.AMBER else Renk.GREEN)
-            kok.addView(kapsul, LinearLayout.LayoutParams(WRAP, WRAP).apply {
-                gravity = Gravity.CENTER_HORIZONTAL
-                topMargin = dp(8) - dp(10)
-            })
-        }
-
-        // The glow: amber, pulsing, when a rest is over; green when the day is done; nothing while it runs.
-        kok.radius = dpf(14f)
-        val renk = when {
-            dikkat -> Renk.AMBER
-            mod == "bitti" -> Renk.GREEN
-            else -> null
-        }
-        kok.glows = if (renk == null) emptyList() else listOf(
-            AdaKok.Glow(ana, renk, pulse = dikkat, corner = when (m) {
-                Mod.MINIMAL -> -1f
-                Mod.ACIK -> dpf(28f)
-                Mod.KOMPAKT -> dpf(24f)
-            }),
-        )
-        yerlestir(m, chip, parlak = renk != null)
-
-        val yeniSekil = "$m/${kapsul != null}/$mod"
-        if (yeniSekil != sekil) {
-            ana.alpha = 0f
-            ana.scaleX = 0.94f
-            ana.scaleY = 0.94f
-            ana.pivotY = 0f
-            ana.addOnLayoutChangeListener(object : View.OnLayoutChangeListener {
-                override fun onLayoutChange(v: View, l: Int, t: Int, r: Int, b: Int, ol: Int, ot: Int, orr: Int, ob: Int) {
-                    v.removeOnLayoutChangeListener(this)
-                    v.pivotX = if (m == Mod.MINIMAL) 0f else v.width / 2f
-                }
-            })
-            ana.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(320).setInterpolator(OvershootInterpolator(0.7f))
-                .setUpdateListener { kok.invalidate() }
-                .withEndAction { kok.invalidate() }
-                .start()
-            kapsul?.let {
-                it.alpha = 0f
-                it.scaleX = 0.92f
-                it.scaleY = 0.92f
-                it.animate().alpha(1f).scaleX(1f).scaleY(1f).setStartDelay(60).setDuration(320)
-                    .setInterpolator(OvershootInterpolator(0.7f)).start()
-            }
-        }
-        sekil = yeniSekil
-
-        daire.bind(
-            when {
-                mod == "bitti" -> AdaDaire.Look.DONE
-                dikkat -> AdaDaire.Look.WAITING
-                else -> AdaDaire.Look.ACTIVE
-            },
-            max(1, i("setNo")), null,
-        )
-        el.removeCallbacks(oynat)
-        if (kareler.isNotEmpty()) el.post(oynat)
+        kAnim.visibility = if (kareler.isEmpty() && id == null) View.GONE else View.VISIBLE
         saatYaz()
     }
 
-    /** The circle on a dark disc, under the camera. */
-    private fun daireCip(size: Int): View {
-        val f = FrameLayout(c).apply {
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Renk.CHIP)
-                setStroke(kil(), Renk.BORDER)
-            }
-            elevation = dp(3).toFloat()
-            contentDescription = s("baslik")
-            setOnClickListener { ac() }
-        }
-        daire.fill = 0.66f
-        f.addView(daire, FrameLayout.LayoutParams(size, size))
-        return f
-    }
+    // ---- clocks ------------------------------------------------------------------------------
 
-    private fun kompakt(): View {
-        val pill = LinearLayout(c).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            background = kart(24)
-            elevation = dp(8).toFloat()
-            minimumWidth = dp(180)
-            setPadding(dp(2), 0, dp(12), 0)
-            setOnClickListener { ac() }
-        }
-        daire.fill = 0.55f
-        pill.addView(daire, LinearLayout.LayoutParams(dp(48), dp(48)))
-        pill.addView(anim(28, 8))
-
-        val sag = yazi("0:00", 13.5f, Renk.TEXT, kalin = true).apply {
-            isSingleLine = true
-            fontFeatureSettings = "tnum"
-            setPadding(dp(12), 0, dp(2), 0)
-        }
-        if (sayac) sayaclar += sag else sag.text = s("sag")
-        if (dikkat) sag.setTextColor(Renk.AMBER_TEXT)
-        val ikinci = when {
-            mod == "mola" -> kelime("mola")
-            dikkat -> kelime("molaBitti")
-            else -> s("set")
-        }
-        sag.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
-        pill.addView(TextView(c).apply {
-            text = baslikSatiri(s("baslik").ifEmpty { s("gun") }, ikinci)
-            letterSpacing = -0.013f
-            isSingleLine = true
-            ellipsize = TextUtils.TruncateAt.END
-            maxWidth = enGenis() - dp(48 + 28 + 22) - max(sag.measuredWidth, dp(48))
-            includeFontPadding = false
-            setPadding(dp(8), 0, 0, 0)
-        }, LinearLayout.LayoutParams(WRAP, WRAP))
-        pill.addView(sag, LinearLayout.LayoutParams(WRAP, WRAP))
-        return pill
-    }
-
-    /** What comes next, in a capsule under the pill (Agent Presence's directive capsule). */
-    private fun kapsul(t: String, vurgu: Int): View {
-        val g = dp(10)
-        val box = LinearLayout(c).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            background = AdaKapsul(
-                fill = Renk.CAPSULE,
-                border = Renk.alpha(vurgu, 0.40f),
-                glowColor = Renk.alpha(vurgu, 0.25f),
-                glow = g.toFloat(),
-                stroke = kil().toFloat(),
-            )
-            minimumHeight = dp(36) + 2 * g
-            setPadding(g + dp(7), g, g + dp(15), g)
-            setOnClickListener { ac() }
-        }
-        val amber = vurgu == Renk.AMBER
-        val rozet = FrameLayout(c).apply {
-            background = GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                if (amber) intArrayOf(0xFFFFB340.toInt(), 0xFFFF9F0A.toInt()) else Renk.DO_GRADIENT,
-            ).apply { shape = GradientDrawable.OVAL }
-        }
-        if (amber) {
-            rozet.addView(yazi("!", 13f, 0xFF000000.toInt(), kalin = true).apply { gravity = Gravity.CENTER },
-                FrameLayout.LayoutParams(MATCH, MATCH))
-        } else {
-            rozet.addView(ikonGorunum(R.drawable.ada_ic_check, 12f, 0xFFFFFFFF.toInt()))
-        }
-        box.addView(rozet, LinearLayout.LayoutParams(dp(22), dp(22)))
-        box.addView(yazi(t, 13.5f, Renk.TEXT, kalin = true).apply {
-            isSingleLine = true
-            ellipsize = TextUtils.TruncateAt.END
-            maxWidth = enGenis() - 2 * g - dp(22 + 8 + 22)
-            setPadding(dp(8), 0, 0, 0)
-        })
-        return box
-    }
-
-    // ---- the open card -------------------------------------------------------------------
-
-    private fun acik(): View {
-        val box = LinearLayout(c).apply {
-            orientation = LinearLayout.VERTICAL
-            background = kart(28)
-            elevation = dp(12).toFloat()
-            setPadding(dp(16), dp(16), dp(16), dp(12))
-            layoutParams = LinearLayout.LayoutParams(minOf(enGenis(), dp(420)), WRAP)
-        }
-
-        // Header: circle · "Saha · Gün A  Adım 3/9" · status badge. A tap on it folds the card.
-        val bas = LinearLayout(c).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setOnClickListener { kucult() }
-        }
-        daire.fill = 0.62f
-        bas.addView(daire, LinearLayout.LayoutParams(dp(36), dp(36)))
-        val ad = SpannableStringBuilder()
-        span(ad, listOf(c.applicationInfo.loadLabel(c.packageManager).toString(), s("gun")).filter { it.isNotEmpty() }.joinToString(" · "), Renk.TEXT, 15f, true)
-        if (s("adimYazi").isNotEmpty()) {
-            ad.append("  ")
-            span(ad, s("adimYazi"), Renk.TEXT2, 11.5f, true)
-        }
-        bas.addView(TextView(c).apply {
-            text = ad
-            letterSpacing = -0.013f
-            isSingleLine = true
-            ellipsize = TextUtils.TruncateAt.END
-            includeFontPadding = false
-            setPadding(dp(10), 0, dp(8), 0)
-        }, LinearLayout.LayoutParams(0, WRAP, 1f))
-        when {
-            mod == "bitti" -> bas.addView(rozet(kelime("bitti"), Renk.GREEN, Renk.GREEN_TEXT))
-            dikkat -> bas.addView(rozet(kelime("siraSende"), Renk.AMBER, Renk.AMBER_TEXT))
-            mod == "mola" -> bas.addView(rozet(kelime("mola"), Renk.BLUE, Renk.BLUE_TEXT))
-            else -> bas.addView(rozet(kelime("suruyor"), Renk.BLUE, Renk.BLUE_TEXT))
-        }
-        box.addView(bas)
-
-        box.addView(simdiki(), LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(12) })
-
-        val liste = (d["liste"] as? List<*>)?.mapNotNull { it as? Map<*, *> } ?: emptyList()
-        if (liste.isNotEmpty()) box.addView(gorevler(liste), LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
-
-        // Bottom: ‹ › through the day's exercises, then open the app, fold, close.
-        val alt = LinearLayout(c).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val beyaz10 = Renk.alpha(0xFFFFFFFF.toInt(), 0.10f)
-        if (d["gezinme"] == true) {
-            alt.addView(yuvarlak(R.drawable.ada_ic_chevron_left) { bas(it, "onceki") })
-            alt.addView(yuvarlak(R.drawable.ada_ic_chevron_right) { bas(it, "sonraki") }, LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginStart = dp(6) })
-        }
-        alt.addView(View(c), LinearLayout.LayoutParams(0, 1, 1f))
-        alt.addView(dugme(kelime("ac"), null, beyaz10, Renk.TEXT) { uygulamayiAc() })
-        alt.addView(dugme(kelime("kucult"), R.drawable.ada_ic_chevron_up, beyaz10, Renk.TEXT) { kucult() }, LinearLayout.LayoutParams(WRAP, WRAP).apply { marginStart = dp(6) })
-        alt.addView(yuvarlak(R.drawable.ada_ic_close) { bas(it, "kapat") }, LinearLayout.LayoutParams(dp(40), dp(40)).apply { marginStart = dp(6) })
-        box.addView(alt, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(8) })
-        return box
-    }
-
-    /** The exercise to do now: animation, set, name, dose, what will be logged; the countdown; the buttons. */
-    private fun simdiki(): View {
-        val p = LinearLayout(c).apply {
-            orientation = LinearLayout.VERTICAL
-            background = zemin(Renk.PANEL, dpf(18f))
-            setPadding(dp(12), dp(12), dp(12), dp(12))
-        }
-        val satir = LinearLayout(c).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        if (kareler.isNotEmpty() || d["id"] != null) satir.addView(anim(76, 18))
-        val col = LinearLayout(c).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(if (satir.childCount > 0) dp(14) else 0, 0, 0, 0)
-        }
-        val ust = if (mod == "mola") kelime("mola").uppercase() else s("set")
-        if (ust.isNotEmpty()) {
-            col.addView(yazi(ust, 11.5f, if (dikkat) Renk.AMBER_TEXT else Renk.BLUE_TEXT, kalin = true).apply { letterSpacing = 0.06f })
-        }
-        // Fixed line counts, so the buttons below never move between exercises.
-        col.addView(yazi(s("baslik"), 16f, Renk.TEXT, kalin = true).apply {
-            isSingleLine = true
-            ellipsize = TextUtils.TruncateAt.END
-            setPadding(0, dp(4), 0, 0)
-        })
-        if (s("doz").isNotEmpty()) {
-            col.addView(yazi(s("doz"), 24f, Renk.TEXT, kalin = true).apply {
-                fontFeatureSettings = "tnum"
-                setPadding(0, dp(4), 0, 0)
-            })
-        }
-        val not = s("not")
-        val kayit = not.ifEmpty { s("kayit") }
-        col.addView(yazi(kayit, 12.5f, if (not.isNotEmpty()) Renk.GREEN_TEXT else Renk.TEXT2).apply {
-            setLines(2)
-            ellipsize = TextUtils.TruncateAt.END
-            setPadding(0, dp(4), 0, 0)
-        })
-        satir.addView(col, LinearLayout.LayoutParams(0, WRAP, 1f))
-        p.addView(satir)
-
-        if (sayac) {
-            val sure = yazi("0:00", 40f, Renk.TEXT, kalin = true).apply {
-                gravity = Gravity.CENTER
-                fontFeatureSettings = "tnum"
-            }
-            sayaclar += sure
-            p.addView(sure, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
-            val b = Cubuk(c)
-            cubuk = b
-            p.addView(b, LinearLayout.LayoutParams(MATCH, dp(4)).apply { topMargin = dp(8) })
-            if (s("sonraki").isNotEmpty()) {
-                p.addView(yazi(s("sonraki"), 12.5f, Renk.TEXT2).apply { gravity = Gravity.CENTER },
-                    LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(8) })
-            }
-        }
-
-        // Second row: −15 / +15 in a rest, kg and reps steps before a set, "OK" for a timed warm-up.
-        val dl = (d["dugmeler"] as? List<*>)?.mapNotNull { it as? Map<*, *> } ?: emptyList()
-        if (dl.isNotEmpty() || mod == "set") {
-            val sira = LinearLayout(c).apply {
-                orientation = LinearLayout.HORIZONTAL
-                isBaselineAligned = false
-                // Kept (empty) when a step has no such buttons, so the main button stays where it was.
-                minimumHeight = dp(40)
-                if (dl.isEmpty()) visibility = View.INVISIBLE
-            }
-            dl.forEachIndexed { k, m ->
-                val e = m["e"] as? String ?: return@forEachIndexed
-                sira.addView(yazi(m["y"] as? String ?: "", if (dl.size > 2) 13f else 14f, Renk.TEXT, kalin = true).apply {
-                    gravity = Gravity.CENTER
-                    background = zemin(Renk.alpha(0xFFFFFFFF.toInt(), 0.08f), dpf(14f))
-                    setOnClickListener { bas(it, e) }
-                }, LinearLayout.LayoutParams(0, dp(40), 1f).apply { if (k > 0) marginStart = dp(6) })
-            }
-            p.addView(sira, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
-        }
-
-        val birincil = s("birincil")
-        if (birincil.isNotEmpty()) {
-            val (bg, fg) = when {
-                mod == "bitti" -> Renk.alpha(Renk.GREEN, 0.18f) to Renk.GREEN_TEXT
-                dikkat -> Renk.AMBER to 0xFF000000.toInt()
-                else -> Renk.BLUE to 0xFFFFFFFF.toInt()
-            }
-            p.addView(yazi(birincil, 15f, fg, kalin = true).apply {
-                gravity = Gravity.CENTER
-                isSingleLine = true
-                ellipsize = TextUtils.TruncateAt.END
-                background = zemin(bg, dpf(22f))
-                setPadding(dp(14), 0, dp(14), 0)
-                setOnClickListener { bas(it, "birincil") }
-            }, LinearLayout.LayoutParams(MATCH, dp(46)).apply { topMargin = dp(10) })
-        }
-        return p
-    }
-
-    /** The day's exercises one under another, like Agent Presence's task list: a window around the current one. */
-    private fun gorevler(liste: List<Map<*, *>>): View {
-        val box = LinearLayout(c).apply {
-            orientation = LinearLayout.VERTICAL
-            background = zemin(Renk.PANEL, dpf(16f))
-            setPadding(dp(4), dp(4), dp(4), dp(4))
-        }
-        val enCok = 4
-        val simdi = liste.indexOfFirst { it["d"] == "s" }.let { if (it < 0) liste.indexOfFirst { r -> r["d"] == "q" } else it }.coerceAtLeast(0)
-        val bas = if (liste.size <= enCok) 0 else (simdi - 1).coerceIn(0, liste.size - enCok)
-        val son = minOf(liste.size, bas + enCok)
-        // Always the same height (the "+n" lines keep their place even when empty), so the buttons under the list
-        // never move as the window slides.
-        val uzun = liste.size > enCok
-        if (uzun) box.addView(dahaSatiri("+$bas", liste.take(bas).all { it["d"] == "b" }).apply { if (bas == 0) visibility = View.INVISIBLE })
-        for (k in bas until son) {
-            if (k > bas && liste[k - 1]["d"] != "s" && liste[k]["d"] != "s") box.addView(ayrac())
-            else if (k > bas) box.addView(ayrac().apply { visibility = View.INVISIBLE })
-            box.addView(gorevSatiri(liste[k], k + 1), LinearLayout.LayoutParams(MATCH, dp(46)))
-        }
-        if (uzun) box.addView(dahaSatiri("+${liste.size - son}", false).apply { if (son >= liste.size) visibility = View.INVISIBLE })
-        return box
-    }
-
-    private fun gorevSatiri(g: Map<*, *>, no: Int): View {
-        val durum = g["d"] as? String ?: "q"
-        val vurgu = when (durum) {
-            "b" -> Renk.GREEN
-            "s" -> if (dikkat) Renk.AMBER else Renk.BLUE
-            else -> Renk.PENDING
-        }
-        val satir = LinearLayout(c).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = dp(42)
-            setPadding(dp(6), dp(5), dp(10), dp(5))
-            if (durum == "s") {
-                background = GradientDrawable(
-                    GradientDrawable.Orientation.LEFT_RIGHT,
-                    intArrayOf(Renk.alpha(vurgu, 0.14f), Renk.alpha(vurgu, 0f)),
-                ).apply { cornerRadius = dpf(12f) }
-            }
-        }
-        val daireK = AdaDaire(c).apply {
-            fill = 0.625f
-            if (durum == "s") oran = (g["oran"] as? Number)?.toFloat() ?: 0f
-            bind(
-                when (durum) {
-                    "b" -> AdaDaire.Look.DONE
-                    "s" -> if (dikkat) AdaDaire.Look.WAITING else AdaDaire.Look.ACTIVE
-                    else -> AdaDaire.Look.PENDING
-                },
-                no, null,
-            )
-        }
-        satir.addView(daireK, LinearLayout.LayoutParams(dp(30), dp(30)))
-        val col = LinearLayout(c).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), 0, dp(8), 0)
-        }
-        val ad = g["ad"] as? String ?: ""
-        col.addView(
-            when (durum) {
-                "b" -> yazi(ad, 13.5f, Renk.TEXT_DONE)
-                "q" -> yazi(ad, 13.5f, Renk.PENDING)
-                else -> yazi(ad, 13.5f, Renk.TEXT, kalin = true)
-            }.apply {
-                maxLines = 1
-                ellipsize = TextUtils.TruncateAt.END
-            },
-        )
-        val alt = g["alt"] as? String ?: ""
-        if (alt.isNotEmpty()) {
-            col.addView(yazi(alt, 12f, if (durum == "s") Renk.TEXT2 else Renk.alpha(Renk.TEXT2, 0.7f)).apply {
-                maxLines = 1
-                ellipsize = TextUtils.TruncateAt.END
-                setPadding(0, dp(2), 0, 0)
-            })
-        }
-        satir.addView(col, LinearLayout.LayoutParams(0, WRAP, 1f))
-        satir.addView(
-            when (durum) {
-                "b" -> rozet(kelime("bitti"), Renk.GREEN, Renk.GREEN_TEXT)
-                "s" -> if (dikkat) rozet(kelime("siraSende"), Renk.AMBER, Renk.AMBER_TEXT) else rozet(kelime("suruyor"), Renk.BLUE, Renk.BLUE_TEXT)
-                else -> rozet(kelime("sirada"), Renk.PENDING, Renk.PENDING)
-            },
-        )
-        return satir
-    }
-
-    private fun dahaSatiri(sayi: String, bitti: Boolean) = LinearLayout(c).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(14), dp(5), dp(10), dp(5))
-        val (vurgu, fg) = if (bitti) Renk.GREEN to Renk.GREEN_TEXT else Renk.PENDING to Renk.PENDING
-        addView(yazi(sayi, 12.5f, fg, kalin = true), LinearLayout.LayoutParams(0, WRAP, 1f))
-        addView(rozet(kelime(if (bitti) "bitti" else "sirada"), vurgu, fg))
-    }
-
-    private fun ayrac() = View(c).apply {
-        setBackgroundColor(Renk.DIVIDER)
-        layoutParams = LinearLayout.LayoutParams(MATCH, kil()).apply {
-            marginStart = dp(44)
-            marginEnd = dp(10)
-        }
-    }
-
-    // ---- small parts ---------------------------------------------------------------------
-
-    private fun kart(r: Int) = GradientDrawable().apply {
-        cornerRadius = dpf(r.toFloat())
-        setColor(Renk.SURFACE)
-        setStroke(kil(), Renk.BORDER)
-    }
-
-    private fun zemin(renk: Int, r: Float) = GradientDrawable().apply {
-        cornerRadius = r
-        setColor(renk)
-    }
-
-    private fun kil() = maxOf(1, (c.resources.displayMetrics.density * 0.75f).toInt())
-
-    private fun enGenis() = (c.resources.displayMetrics.widthPixels * 0.92f).toInt()
-
-    private fun yazi(t: CharSequence?, sp: Float, renk: Int, kalin: Boolean = false) = TextView(c).apply {
-        text = t
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
-        setTextColor(renk)
-        typeface = if (kalin) Yazi.kalin else Yazi.normal
-        includeFontPadding = false
-    }
-
-    /** A status badge: capsule, 11.5 semibold, the accent at 16 % behind the accent's text color. */
-    private fun rozet(kelime: String, vurgu: Int, fg: Int) = yazi(kelime, 11.5f, fg, kalin = true).apply {
-        isSingleLine = true
-        background = zemin(Renk.alpha(vurgu, 0.16f), dpf(12f))
-        setPadding(dp(8), dp(3), dp(8), dp(3))
-    }
-
-    /** A capsule button: 30 dp tall inside a 40 dp touch target, optional leading icon, 12.5 semibold. */
-    private fun dugme(t: String, ikon: Int?, bg: Int, fg: Int, f: (View) -> Unit) = yazi(t, 12.5f, fg, kalin = true).apply {
-        isSingleLine = true
-        gravity = Gravity.CENTER
-        val v = dp(5)
-        background = InsetDrawable(zemin(bg, dpf(15f)), 0, v, 0, v)
-        minHeight = dp(40)
-        setPadding(dp(if (ikon != null) 10 else 14), 0, dp(14), 0)
-        if (ikon != null) {
-            setCompoundDrawablesRelative(ikonCiz(ikon, 15f, fg), null, null, null)
-            compoundDrawablePadding = dp(4)
-        }
-        setOnClickListener {
-            it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            f(it)
-        }
-    }
-
-    /** A round icon button (‹, ›, ✕). */
-    private fun yuvarlak(ikon: Int, f: (View) -> Unit): View = FrameLayout(c).apply {
-        background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(Renk.alpha(0xFFFFFFFF.toInt(), 0.10f))
-        }
-        layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
-        addView(ikonGorunum(ikon, 20f, Renk.TEXT))
-        setOnClickListener { f(it) }
-    }
-
-    private fun ikonGorunum(res: Int, sizeDp: Float, tint: Int): View {
-        val px = dpf(sizeDp).toInt()
-        return ImageView(c).apply {
-            setImageDrawable(c.getDrawable(res)!!.mutate().apply { setTint(tint) })
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            layoutParams = FrameLayout.LayoutParams(px, px, Gravity.CENTER)
-        }
-    }
-
-    private fun ikonCiz(res: Int, sizeDp: Float, tint: Int): Drawable = c.getDrawable(res)!!.mutate().apply {
-        setTint(tint)
-        val px = dpf(sizeDp).toInt()
-        setBounds(0, 0, px, px)
-    }
-
-    /** The exercise's animation in a rounded square; the frames play in all of them at once. */
-    private fun anim(boyDp: Int, yaricapDp: Int): View {
-        val v = ImageView(c).apply {
-            background = zemin(Renk.alpha(0xFFFFFFFF.toInt(), 0.06f), dpf(yaricapDp.toFloat()))
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            val r = dpf(yaricapDp.toFloat())
-            outlineProvider = object : ViewOutlineProvider() {
-                override fun getOutline(view: View, o: Outline) = o.setRoundRect(0, 0, view.width, view.height, r)
-            }
-            clipToOutline = true
-            layoutParams = LinearLayout.LayoutParams(dp(boyDp), dp(boyDp))
-            if (kareler.isNotEmpty()) setImageBitmap(kareler[kareNo % kareler.size])
-        }
-        animlar += v
-        return v
-    }
-
-    /** The name in the title style and the second part in the secondary style, on one line. */
-    private fun baslikSatiri(ana: String, ikinci: String?): CharSequence {
-        val sb = SpannableStringBuilder()
-        span(sb, ana, Renk.TEXT, 15f, true)
-        if (!ikinci.isNullOrBlank()) {
-            sb.append("  ")
-            span(sb, ikinci, Renk.TEXT2, 13f, false)
-        }
-        return sb
-    }
-
-    private fun span(sb: SpannableStringBuilder, t: String, renk: Int, sp: Float, kalin: Boolean) {
-        val bas = sb.length
-        sb.append(t)
-        sb.setSpan(ForegroundColorSpan(renk), bas, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        val px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sp, c.resources.displayMetrics).toInt()
-        sb.setSpan(AbsoluteSizeSpan(px, false), bas, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        if (Build.VERSION.SDK_INT >= 28) {
-            sb.setSpan(TypefaceSpan(if (kalin) Yazi.kalin else Yazi.normal), bas, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        } else if (kalin) {
-            sb.setSpan(StyleSpan(Typeface.BOLD), bas, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        }
-    }
-
-    // ---- window placement ----------------------------------------------------------------
-
-    private fun ustBosluk(): Int {
-        if (Build.VERSION.SDK_INT >= 30) {
-            return wm.currentWindowMetrics.windowInsets
-                .getInsetsIgnoringVisibility(WindowInsets.Type.statusBars() or WindowInsets.Type.displayCutout()).top
-        }
-        val id = c.resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (id > 0) c.resources.getDimensionPixelSize(id) else dp(24)
-    }
-
-    /** The camera hole at the top of the screen, if the phone has one. */
-    private fun kamera(): Rect? {
-        if (Build.VERSION.SDK_INT >= 30) {
-            return wm.currentWindowMetrics.windowInsets.displayCutout?.boundingRectTop?.takeIf { !it.isEmpty }
-        }
-        if (Build.VERSION.SDK_INT >= 28) {
-            return kok.rootWindowInsets?.displayCutout?.boundingRects?.firstOrNull { it.top == 0 && !it.isEmpty }
-        }
-        return null
-    }
-
-    /** Minimal: right under the camera hole, centred on it. Compact and open: top centre, under the status bar. */
-    private fun yerlestir(m: Mod, chip: Int, parlak: Boolean) {
-        val top = ustBosluk()
-        val pay = if (parlak) dp(18) else 0
-        val gx: Int
-        val gy: Int
-        val gravity: Int
-        if (m == Mod.MINIMAL) {
-            kok.setPadding(pay, pay, pay, pay + dp(2))
-            gravity = Gravity.TOP or Gravity.START
-            val ortaX = kamera()?.centerX() ?: (c.resources.displayMetrics.widthPixels / 2)
-            gx = ortaX - chip / 2 - pay
-            gy = top + dp(4) - pay
-        } else {
-            val yan = maxOf(dp(6), pay)
-            val ust = maxOf(dp(3), pay)
-            kok.setPadding(yan, ust, yan, yan)
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            gx = 0
-            gy = top + dp(4) - ust
-        }
-        // A wrap-content app window is first measured at the dialog width (~320 dp) and single-line text then
-        // ellipsizes early; measured here against the whole screen and set exactly.
-        val ekran = c.resources.displayMetrics
-        kok.measure(
-            View.MeasureSpec.makeMeasureSpec(ekran.widthPixels, View.MeasureSpec.AT_MOST),
-            View.MeasureSpec.makeMeasureSpec(ekran.heightPixels, View.MeasureSpec.AT_MOST),
-        )
-        val w = kok.measuredWidth.coerceAtMost(ekran.widthPixels)
-        if (lp.gravity != gravity || lp.x != gx || lp.y != gy || lp.width != w) {
-            lp.gravity = gravity
-            lp.x = gx
-            lp.y = gy
-            lp.width = w
-            // Right after addView the view is not attached yet, but it already has its window: update it anyway.
-            if (kok.parent != null) runCatching { wm.updateViewLayout(kok, lp) }
-        }
-    }
-
-    // ---- clocks ----------------------------------------------------------------------------
+    private val el = Handler(Looper.getMainLooper())
 
     private val oynat = object : Runnable {
         override fun run() {
             if (kareler.isEmpty()) return
             val b = kareler[kareNo % kareler.size]
-            for (v in animlar) v.setImageBitmap(b)
+            kAnim.setImageBitmap(b)
+            if (acikMi) gAnim.setImageBitmap(b)
             kareNo++
             if (kareler.size > 1) el.postDelayed(this, kareMs.toLong())
         }
@@ -841,30 +432,58 @@ class AdaGorunum(private val c: Context, private val wm: WindowManager) {
     }
 
     private fun saatYaz() {
-        val son = bitis
-        if (son > 0) {
-            val kalanMs = son - System.currentTimeMillis()
+        if (bitis > 0) {
+            val kalanMs = bitis - System.currentTimeMillis()
             val kalan = max(0, ceil(kalanMs / 1000.0).toInt())
-            val t = "${kalan / 60}:${(kalan % 60).toString().padStart(2, '0')}"
-            for (v in sayaclar) v.text = t
-            val oran = if (toplamSn > 0) (kalanMs / (toplamSn * 1000f)).coerceIn(0f, 1f) else 0f
-            daire.oran = oran
-            cubuk?.oran = oran
+            val yazi = "${kalan / 60}:${(kalan % 60).toString().padStart(2, '0')}"
+            kSag.text = yazi
+            gSure.text = yazi
+            val oran = if (toplam > 0) (kalanMs / (toplam * 1000f)).coerceIn(0f, 1f) else 0f
+            kHalka.oran = oran
+            gCubuk.oran = oran
+            kHalka.renk = turuncu
         } else {
-            daire.oran = ((d["ilerleme"] as? Number)?.toFloat() ?: 0f)
+            kSag.text = s("sag")
+            kHalka.oran = ((son["ilerleme"] as? Number)?.toFloat() ?: 0f)
+            kHalka.renk = if (kHalka.oran >= 1f) yesil else turuncu
         }
+        kSag.visibility = if (kSag.text.isNullOrEmpty()) View.GONE else View.VISIBLE
     }
 
-    private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), c.resources.displayMetrics).toInt()
-    private fun dpf(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, c.resources.displayMetrics)
-
-    private companion object {
-        const val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
-        const val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
+    /** Rest or a timed set is over (the service buzzes and rings): pulse the pill. */
+    fun uyar() {
+        val hedef = if (acikMi) genis else kompakt
+        ValueAnimator.ofFloat(1f, 1.1f, 1f).apply {
+            duration = 520
+            repeatCount = 1
+            addUpdateListener { val f = it.animatedValue as Float; hedef.scaleX = f; hedef.scaleY = f }
+            start()
+        }
     }
 }
 
-/** Thin progress bar for the countdown, in the island's blue. */
+/** Ring that fills with [oran] (0..1). */
+class Halka(c: Context) : View(c) {
+    var oran = 0f
+        set(v) { if (field != v) { field = v; invalidate() } }
+    var renk = Color.rgb(255, 106, 43)
+        set(v) { if (field != v) { field = v; invalidate() } }
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
+    private val r = RectF()
+
+    override fun onDraw(cv: Canvas) {
+        val w = width.toFloat()
+        val k = w * 0.13f
+        p.strokeWidth = k
+        r.set(k / 2 + 1, k / 2 + 1, w - k / 2 - 1, height - k / 2 - 1)
+        p.color = Color.rgb(48, 48, 54)
+        cv.drawArc(r, 0f, 360f, false, p)
+        p.color = renk
+        if (oran > 0f) cv.drawArc(r, -90f, 360f * oran, false, p)
+    }
+}
+
+/** Thin progress bar for the countdown. */
 class Cubuk(c: Context) : View(c) {
     var oran = 0f
         set(v) { if (field != v) { field = v; invalidate() } }
@@ -873,10 +492,10 @@ class Cubuk(c: Context) : View(c) {
 
     override fun onDraw(cv: Canvas) {
         val h = height.toFloat()
-        p.color = Renk.PENDING_FILL
+        p.color = Color.rgb(44, 44, 50)
         r.set(0f, 0f, width.toFloat(), h)
         cv.drawRoundRect(r, h / 2, h / 2, p)
-        p.color = Renk.BLUE
+        p.color = Color.rgb(255, 106, 43)
         r.set(0f, 0f, width * oran, h)
         if (oran > 0f) cv.drawRoundRect(r, h / 2, h / 2, p)
     }
