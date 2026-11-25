@@ -166,7 +166,7 @@ class _ExercisePageState extends State<ExercisePage> {
       Wrap(spacing: 8, runSpacing: 8, children: [
         for (final r in sets)
           GestureDetector(
-            onLongPress: () => _deleteRecord(store, r),
+            onLongPress: () => _recordActions(store, r),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
               decoration: BoxDecoration(color: C.surface2, borderRadius: BorderRadius.circular(12), border: Border.all(color: C.line)),
@@ -179,8 +179,83 @@ class _ExercisePageState extends State<ExercisePage> {
           ),
       ]),
       const SizedBox(height: 6),
-      Text(tr('Silmek için basılı tut.'), style: T.caption),
+      Text(tr('Düzenlemek ya da silmek için basılı tut.'), style: T.caption),
     ]);
+  }
+
+  /// Long press on a saved set: edit it or delete it.
+  Future<void> _recordActions(Store store, Map r) async {
+    HapticFeedback.mediumImpact();
+    final type = e.type!;
+    Widget secenek(BuildContext ctx, IconData icon, String label, Color c, String value) => Material(
+          color: C.surface3,
+          borderRadius: BorderRadius.circular(16),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => Navigator.pop(ctx, value),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              child: Row(children: [
+                Icon(icon, size: 21, color: c),
+                const SizedBox(width: 14),
+                Text(label, style: t(16, w: 620, color: c)),
+              ]),
+            ),
+          ),
+        );
+    final secim = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Glass(
+        radius: 28,
+        opacity: 0.86,
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Center(child: Container(width: 38, height: 5, decoration: BoxDecoration(color: C.line2, borderRadius: BorderRadius.circular(3)))),
+              const SizedBox(height: 16),
+              Text(type.text(r), style: T.title3, textAlign: TextAlign.center),
+              const SizedBox(height: 4),
+              Text([e.name, shortDate(r['d']), if (r['set'] != null) trf('Set {0}', [r['set']])].join(' · '), style: T.callout, textAlign: TextAlign.center),
+              const SizedBox(height: 18),
+              secenek(ctx, CupertinoIcons.pencil, tr('Düzenle'), C.text, 'duzenle'),
+              const SizedBox(height: 8),
+              secenek(ctx, CupertinoIcons.trash, tr('Sil'), C.red, 'sil'),
+            ]),
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (secim == 'sil') _deleteRecord(store, r);
+    if (secim == 'duzenle') await _editRecord(store, r);
+  }
+
+  Future<void> _editRecord(Store store, Map r) async {
+    final type = e.type!;
+    final res = await showWheelSheet(
+      context,
+      title: tr('Seti düzenle'),
+      subtitle: [e.name, shortDate(r['d']), if (r['set'] != null) trf('Set {0}', [r['set']])].join(' · '),
+      fields: type.fields,
+      values: {for (final f in type.fields) f.key: r[f.key] == null ? null : n(r[f.key])},
+      action: tr('Kaydet'),
+    );
+    if (res == null || !mounted) return;
+    for (final f in type.fields) {
+      if (!f.optional && res[f.key] == null) return;
+    }
+    final old = store.updateRecord(e.id, r['id'], res);
+    if (old == null) return;
+    HapticFeedback.mediumImpact();
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(trf('Düzenlendi: {0}', [type.text({...old, ...res})])),
+        action: SnackBarAction(label: tr('Geri al'), textColor: C.accent, onPressed: () => store.putRecord(e.id, old)),
+      ));
   }
 
   void _deleteRecord(Store store, Map r) {
@@ -392,7 +467,7 @@ class _ExercisePageState extends State<ExercisePage> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: GestureDetector(
-                  onLongPress: () => _deleteRecord(store, r),
+                  onLongPress: () => _recordActions(store, r),
                   child: Row(children: [
                     SizedBox(width: 64, child: Text(shortDate(r['d']), style: T.callout)),
                     Text(trf('H{0}', [r['w'] ?? '–']), style: T.caption),

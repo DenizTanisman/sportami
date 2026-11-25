@@ -233,13 +233,9 @@ class Ada extends ChangeNotifier with WidgetsBindingObserver {
     return store.ticked(key) ? _hedef(k) : (_sayac[key] ?? 0);
   }
 
-  /// What the next set will log: today's last set, else the last record with the dose's reps
-  /// (a short test set last time should not set today's reps), plus changes made on the island.
+  /// What the next set will log ([setPrefill]) plus changes made on the island.
   Map<String, num?> _degerler(_Kalem k) {
-    final v = setPrefill(store, k.e, k.slot);
-    final (_, reps) = parseDose(_doz(k));
-    if (store.todaySets(k.e.id).isEmpty && reps != null && v['r'] != null) v['r'] = reps;
-    return {...v, ...?_ayar[_anahtar(k)]};
+    return {...setPrefill(store, k.e, k.slot), ...?_ayar[_anahtar(k)]};
   }
 
   void _ayarla(_Kalem k, String alan, int yon) {

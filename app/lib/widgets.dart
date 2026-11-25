@@ -249,11 +249,13 @@ class _RingPainter extends CustomPainter {
   return (s == null ? null : int.parse(s[1]!), null);
 }
 
-/// Values a new set starts from: today's last set, else the last record, else the dose.
+/// Values a new set starts from: today's last set; on the day's first set the last record's
+/// weight with the dose's reps (a short test set last time should not set today's reps).
 Map<String, num?> setPrefill(Store store, Exercise e, Slot? slot) {
   final type = e.type!;
-  final last = store.todaySets(e.id).lastOrNull ?? store.last(e.id);
+  final today = store.todaySets(e.id).lastOrNull;
   final (_, reps) = parseDose(slot?.doseFor(store.phase));
+  final last = today ?? (reps == null ? store.last(e.id) : ({...?store.last(e.id)}..remove('r')));
   return {
     for (final f in type.fields)
       f.key: (last?[f.key] == null ? null : n(last![f.key])) ??

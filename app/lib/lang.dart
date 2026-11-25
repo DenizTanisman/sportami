@@ -461,4 +461,10 @@ const _en = <String, String>{
   'SETLER TAMAM · {0} / {1}': 'SETS DONE · {0} / {1}',
   'Ekstra set': 'Extra set',
   'Sıradaki hareket': 'Next exercise',
+  'Düzenlemek ya da silmek için basılı tut.': 'Press and hold to edit or delete.',
+  'Düzenle': 'Edit',
+  'Sil': 'Delete',
+  'Seti düzenle': 'Edit set',
+  'Düzenlendi: {0}': 'Edited: {0}',
+  'Set {0}': 'Set {0}',
 };

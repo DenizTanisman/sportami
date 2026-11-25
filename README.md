@@ -81,6 +81,7 @@ All the rules are based on published guidelines and research: WHO 2020, ACSM, NS
   - **Muscles worked:** a body map.
   - **Alternatives:** a general, an easier and a harder alternative.
 - **Metal wheel logging:** Weight and reps are picked with brushed-metal wheels. The rest time of each set is counted automatically.
+- **Edit or delete a set:** Press and hold a saved set, then choose **Edit** (the same wheels) or **Delete**. Both can be undone.
 - **Next exercise:** When all sets of an exercise are done, its page offers the next exercise of the day in one tap; **Extra set** is still there. In a superset it takes you straight to the other half.
 - **Workout island** over other apps (see above).
 - **Progress:** Records and charts for the main lifts; body measurements.

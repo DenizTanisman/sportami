@@ -594,6 +594,40 @@ class Store extends ChangeNotifier {
     _changed();
   }
 
+  /// Changes a saved set's values (null removes an optional one). Returns the record as it was,
+  /// for undo, or null when it is not there.
+  Map<String, dynamic>? updateRecord(String exerciseId, String id, Map<String, num?> values) {
+    final m = _data['kayitlar'] as Map;
+    final l = (m[exerciseId] as List?)?.toList() ?? [];
+    final i = l.indexWhere((r) => r['id'] == id);
+    if (i < 0) return null;
+    final old = Map<String, dynamic>.from(l[i] as Map);
+    final r = Map<String, dynamic>.from(old);
+    values.forEach((k, v) {
+      if (v == null) {
+        r.remove(k);
+      } else {
+        r[k] = v;
+      }
+    });
+    r['duzenlendi'] = DateTime.now().millisecondsSinceEpoch;
+    l[i] = r;
+    m[exerciseId] = l;
+    _changed();
+    return old;
+  }
+
+  /// Puts a record back exactly as it was (undo of [updateRecord]).
+  void putRecord(String exerciseId, Map record) {
+    final m = _data['kayitlar'] as Map;
+    final l = (m[exerciseId] as List?)?.toList() ?? [];
+    final i = l.indexWhere((r) => r['id'] == record['id']);
+    if (i < 0) return;
+    l[i] = Map<String, dynamic>.from(record);
+    m[exerciseId] = l;
+    _changed();
+  }
+
   void restoreLast() {
     final bin = (_data['cop'] as List?)?.toList() ?? [];
     if (bin.isEmpty) return;
