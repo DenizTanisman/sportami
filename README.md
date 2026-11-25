@@ -1,25 +1,25 @@
-# Saha
+# Sportami
 
 **An Android app that builds a research-based training program around your pain, goals and time, and then walks you through it step by step.**
 
 > **Warning:** The suggestions here are based on publicly published research and guidelines. They are not advice from a doctor, physiotherapist or dietitian. Consult a specialist for accurate information.
 
 <p>
-  <img src="docs/kurulum-rahatsizlik.jpg" width="24%" alt="Setup: choosing a condition, pain score and red flags">
-  <img src="docs/kurulum-kaslar.jpg" width="24%" alt="Setup: the muscle groups your goals need, on the body map">
-  <img src="docs/kurulum-program.jpg" width="24%" alt="Setup: the finished program, days of the week and exercises">
-  <img src="docs/bugun.jpg" width="24%" alt="Today screen: the plan for the day">
+  <img src="docs/setup-conditions.jpg" width="24%" alt="Setup: choosing a condition, pain score and grade">
+  <img src="docs/setup-muscles.jpg" width="24%" alt="Setup: the muscle groups your goals need, on the body map">
+  <img src="docs/setup-program.jpg" width="24%" alt="Setup: the finished program, days of the week and exercises">
+  <img src="docs/today.jpg" width="24%" alt="Today screen: the plan for the day">
 </p>
 
 ## Promo video
 
-One minute: setup for an intermediate male who plays basketball and baseball, with mild low back pain and 4 gym days a week (Turkish interface).
+One minute: setup for an intermediate male who plays basketball and baseball, with mild low back pain and 4 gym days a week. The video starts in Turkish and switches the app to English with one tap.
 
-[![Promo video: the setup flow from consent to the finished program](media/tanitim_kapak.jpg)](media/saha_tanitim.mp4)
+[![Promo video: the setup flow from consent to the finished program](media/promo_cover.jpg)](media/sportami_promo.mp4)
 
 ## How it works
 
-On first launch there is a short setup flow:
+On first launch there is a short setup flow. The app opens in your phone's language (Turkish on a Turkish phone, English otherwise); the TR | EN switch at the top of every setup step, and later in the Progress tab, changes it at once.
 
 1. **Warning and consent.** Your data stays only on your phone; there is no account and no server.
 2. **Profile:** sex, age and training history.
@@ -56,12 +56,12 @@ All the rules are based on published guidelines and research: WHO 2020, ACSM, NS
   - **Alternatives:** a general, an easier and a harder alternative.
 - **Metal wheel logging:** Weight and reps are picked with brushed-metal wheels. The rest time of each set is counted automatically.
 - **Progress:** Records and charts for the main lifts; body measurements.
-- **Turkish and English:** The interface and the content are in both languages.
+- **English and Turkish:** The interface and all content (exercises, conditions, sports, program notes) are in both languages. Switch any time; nothing is lost.
 - **Backup:** Records are kept only on the phone. Export copies them to the clipboard; import never deletes anything.
 
 ## Installation
 
-1. Download the latest `saha-x.y.z.apk` from the [Releases](../../releases) page to your phone.
+1. Download the latest `sportami-x.y.z.apk` from the [Releases](https://github.com/DenizTanisman/sportami/releases) page to your phone.
 2. If your phone asks for permission to install from unknown sources, allow it and install.
 
 Requires Android 7 or later. Anatomical animations need an internet connection; without one the app shows its own drawing. Everything else works offline.
@@ -78,7 +78,7 @@ flutter build apk --release
 
 For a release signature, create an `app/android/key.properties` file. This file is not committed to the repo; without it the APK is signed with the debug key.
 
-Code layout (`app/lib/`):
+Code layout (`app/lib/`). The app started as a Turkish project, so file names and some identifiers are Turkish (`motor` = engine, `kurulum` = setup, `kaslar` = muscles); the tables below say what each one holds.
 
 | File | Contents |
 |---|---|

@@ -1,3 +1,4 @@
+import 'dart:ui' show PlatformDispatcher;
 import 'dart:convert';
 import 'dart:io';
 
@@ -231,7 +232,8 @@ void main() {
     test('choice is saved and read back', () async {
       final dir = Directory.systemTemp.createTempSync('saha_dil');
       await Lang.load(dir: dir);
-      expect(Lang.current.value, Dil.tr);
+      // No saved choice: the phone's language decides (Turkish → TR, anything else → EN).
+      expect(Lang.current.value, PlatformDispatcher.instance.locale.languageCode == 'tr' ? Dil.tr : Dil.en);
       await Lang.set(Dil.en);
       Lang.current.value = Dil.tr;
       await Lang.load(dir: dir);

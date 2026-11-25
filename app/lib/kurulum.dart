@@ -387,7 +387,9 @@ class _KurulumAkisiState extends State<KurulumAkisi> {
               ),
               const SizedBox(width: 12),
               Text('${_i + 1}/${_adimlar.length}', style: T.caption),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
+              const DilDugmesi(),
+              const SizedBox(width: 8),
             ]),
           ),
           Expanded(
@@ -1114,3 +1116,39 @@ class _KurulumAkisiState extends State<KurulumAkisi> {
   bool _gorunur(Plan p, String yeni) => p.takvim.any((g) => g.hareketler.any((r) => r.hareket == yeni));
 }
 
+
+
+/// Small TR | EN switch in the setup flow's top bar: the language can be chosen before anything else.
+class DilDugmesi extends StatelessWidget {
+  const DilDugmesi({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget parca(Dil d, String s) {
+      final secili = Lang.current.value == d;
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (secili) return;
+          HapticFeedback.selectionClick();
+          Lang.set(d);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(color: secili ? C.surface3 : null, borderRadius: BorderRadius.circular(9)),
+          child: Text(s, style: t(12.5, w: secili ? 700 : 520, color: secili ? C.text : C.text3)),
+        ),
+      );
+    }
+
+    return Semantics(
+      label: 'Language / Dil',
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(color: C.surface2, borderRadius: BorderRadius.circular(11), border: Border.all(color: C.line)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [parca(Dil.tr, 'TR'), parca(Dil.en, 'EN')]),
+      ),
+    );
+  }
+}

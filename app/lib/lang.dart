@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -33,6 +34,9 @@ class Lang {
       if (await _file!.exists()) {
         final j = jsonDecode(await _file!.readAsString()) as Map;
         current.value = j['dil'] == 'en' ? Dil.en : Dil.tr;
+      } else {
+        // First run: follow the phone's language (Turkish phones get Turkish, everything else English).
+        current.value = PlatformDispatcher.instance.locale.languageCode == 'tr' ? Dil.tr : Dil.en;
       }
     } catch (_) {}
   }

@@ -40,7 +40,7 @@ class SahaApp extends StatelessWidget {
       rest: rest,
       child: LangScope(
         child: MaterialApp(
-          title: 'Saha',
+          title: 'Sportami',
           debugShowCheckedModeBanner: false,
           theme: buildTheme(),
           // Genel sürüm: program yoksa önce kurulum akışı.
